@@ -1,4 +1,5 @@
 ﻿using Sora;
+using Sora.Entities.Base;
 using Sora.EventArgs.SoraEvent;
 using Sora.Interfaces;
 using Sora.Net.Config;
@@ -11,6 +12,8 @@ public static class Manage
 { 
     static Dictionary<long, GroupSoraRobot> _groupRobots = new Dictionary<long, GroupSoraRobot>();
     public static ISoraService sora;
+
+    public static SoraApi Api => sora.GetApi(sora.ServiceId);
 
     private static long _adminGroup = 1028750616;
     public async static ValueTask GetGroupMsg(string _, GroupMessageEventArgs args)
@@ -31,7 +34,7 @@ public static class Manage
     static async void CommandExceptionHandle(Exception exception, BaseMessageEventArgs eventArgs, string log)
     {
         string msg = $"bug了！！！\r\n{log}\r\n{exception.Message}";
-        await sora.GetApi(sora.ServiceId).SendGroupMessage(_adminGroup, msg);
+        await Api.SendGroupMessage(_adminGroup, msg);
     }
 
     public async static Task Run()
