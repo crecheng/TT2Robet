@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "robot", "robot\robot.csproj", "{C255DD40-FD83-4B78-A998-91FD857C9645}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sora", "Sora\Sora\Sora.csproj", "{4AB37BE4-644B-4371-A2DB-446421ABF8B6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C255DD40-FD83-4B78-A998-91FD857C9645}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C255DD40-FD83-4B78-A998-91FD857C9645}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C255DD40-FD83-4B78-A998-91FD857C9645}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C255DD40-FD83-4B78-A998-91FD857C9645}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4AB37BE4-644B-4371-A2DB-446421ABF8B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4AB37BE4-644B-4371-A2DB-446421ABF8B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4AB37BE4-644B-4371-A2DB-446421ABF8B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4AB37BE4-644B-4371-A2DB-446421ABF8B6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
