@@ -2,14 +2,15 @@
 
 using Newtonsoft.Json;
 using robot;
-
+using Sora.Entities.Segment;
 
 
 Console.WriteLine("Hello, Robot!");
+Console.WriteLine(123456789L.ToAt().ToString());
+Console.WriteLine("Hello, Robot!");
+//await Manage.Run();
 
-await Manage.Run();
-
-await Task.Delay(-1);
+//await Task.Delay(-1);
 
 
 

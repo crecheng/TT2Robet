@@ -8,9 +8,7 @@ public class GroupSoraRobot : GroupRobot
 {
     public bool Work;
     public bool Open;
-    public Dictionary<string, string>? PathReply;
-    public Dictionary<string, string>? CompleteReply;
-
+    
     public GroupSoraRobot(long id)
     {
         ID = id;
