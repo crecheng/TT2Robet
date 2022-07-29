@@ -23,10 +23,10 @@ public static class RobotFactory
         try
         {
             var pr = $"{path}/{pathReplyPath}";
-            robot.PathReply = GetJsonOrNew<Dictionary<string, string>>(File.ReadAllText(pr)) ;
+            robot.PathReply = GetJsonOrNew<Dictionary<string, string>>(pr) ;
             
             var cr=$"{path}/{completeReplyPath}";
-            robot.CompleteReply = GetJsonOrNew<Dictionary<string, string>>(File.ReadAllText(cr)) ;
+            robot.CompleteReply = GetJsonOrNew<Dictionary<string, string>>(cr) ;
             
             var path1 = $"{path}/{adminQQPath}";
             robot.Admin = GetJsonOrNew<List<long>>(path1);

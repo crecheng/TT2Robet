@@ -16,12 +16,16 @@ public static class Manage
     public static SoraApi Api => sora.GetApi(sora.ServiceId);
 
     private static long _adminGroup = 1028750616;
+    private static long _testGroup = 645884953;
     public async static ValueTask GetGroupMsg(string _, GroupMessageEventArgs args)
     {
         var id = args.SourceGroup.Id;
         if (!_groupRobots.ContainsKey(id))
         {
-            _groupRobots.Add(id,new GroupSoraRobot(id));
+            if(id==_adminGroup|| id==_testGroup)
+                _groupRobots.Add(id,new AdminGroupRobot(id)); 
+            else
+                _groupRobots.Add(id,new GroupSoraRobot(id));
         }
 
         var robot = _groupRobots[id];
@@ -45,13 +49,12 @@ public static class Manage
             .SetLogLevel(LogLevel.Verbose);
 
         //实例化Sora服务
-        ISoraService service = SoraServiceFactory.CreateService(new ServerConfig
+        ISoraService service = SoraServiceFactory.CreateService(new ClientConfig
         {
             EnableSocketMessage    = false,
             ThrowCommandException  = false,
             SendCommandErrMsg      = false,
             CommandExceptionHandle = CommandExceptionHandle,
-            Port                   = 7500
         });
         
         service.Event.OnGroupMessage += GetGroupMsg;
@@ -63,6 +66,7 @@ public static class Manage
         
         
         sora = service;
+        
         await service.StartService()
             .RunCatch(e => Log.Error("Sora Service", Log.ErrorLogBuilder(e)));
     }

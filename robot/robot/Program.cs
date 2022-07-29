@@ -2,15 +2,15 @@
 
 using Newtonsoft.Json;
 using robot;
+using Sora.Entities;
 using Sora.Entities.Segment;
-
+using Sora.Util;
 
 Console.WriteLine("Hello, Robot!");
-Console.WriteLine(123456789L.ToAt().ToString());
-Console.WriteLine("Hello, Robot!");
-//await Manage.Run();
-
-//await Task.Delay(-1);
+Console.WriteLine($"Robot path : {AppDomain.CurrentDomain.BaseDirectory}");
+Tool.AppPath = AppDomain.CurrentDomain.BaseDirectory + "\\";
+await Manage.Run();
+await Task.Delay(-1);
 
 
 

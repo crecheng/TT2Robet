@@ -1,6 +1,8 @@
 ﻿using Microsoft.VisualBasic;
+using Sora.Entities;
 using Sora.EventArgs.SoraEvent;
 using Sora.Interfaces;
+using Sora.Util;
 
 namespace robot;
 
@@ -8,6 +10,7 @@ public class GroupSoraRobot : GroupRobot
 {
     public bool Work;
     public bool Open;
+    public Group GroupData;
     
     public GroupSoraRobot(long id)
     {
@@ -60,6 +63,18 @@ public class GroupSoraRobot : GroupRobot
 
         return false;
     }
+    public async Task<bool> SendMsgObj(MessageBody text, object? obj = null)
+    {
+        if (obj is GroupMessageEventArgs args)
+        {
+            await SendMsgObj(args, text);
+            return true;
+        }
+        else
+            Console.WriteLine($" !!!! Error {ID}-{BaseId}-[ obj==null {obj==null}]");
+
+        return false;
+    }
     
 
     public async ValueTask GetMsg(string _, GroupMessageEventArgs args)
@@ -68,6 +83,11 @@ public class GroupSoraRobot : GroupRobot
     }
 
     public async ValueTask SendMsg(GroupMessageEventArgs args, string text)
+    {
+        await args.Reply(CQCodeUtil.DeserializeMessage(text));
+    }
+    
+    public async ValueTask SendMsgObj(GroupMessageEventArgs args, MessageBody text)
     {
         await args.Reply(text);
     }
