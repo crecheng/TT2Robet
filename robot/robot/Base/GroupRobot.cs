@@ -1,15 +1,14 @@
-﻿namespace robot;
+﻿using robot.RobotModel;
+
+namespace robot;
 
 public class GroupRobot: IRobot
 {
     public long ID { get; set; }
     public long BaseId { get; set; }
-    public Dictionary<string, string>? PathReply;
-    public Dictionary<string, string>? CompleteReply;
-    public List<long>? Admin;
-    public Dictionary<string, Func<long, string, object, GroupRobot, string>> Fun;
-    public Dictionary<string, Func<long, string, object, GroupRobot, string>> AdminFun;
-
+    public List<long> Admin=new List<long>();
+    public Dictionary<string, RobotModelBase> RobotModel=new Dictionary<string, RobotModelBase>();
+    public RobotConfig Config;
     public string HardName = ".";
     public string RobotName = "小助手";
     
@@ -23,4 +22,5 @@ public class GroupRobot: IRobot
     {
         return true;
     }
+    
 }

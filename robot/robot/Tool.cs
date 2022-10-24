@@ -1,4 +1,6 @@
-﻿using Sora.Entities.Segment;
+﻿using Sora.Entities;
+using Sora.Entities.Segment;
+using Sora.Util;
 
 namespace robot;
 
@@ -41,6 +43,40 @@ public static class Tool
     {
         return Image(GetRandomName(path));
     }
+    
+    public static MessageBody GetSoraMessageBody(this SoraMessage message)
+    {
+        MessageBody result;
+        switch (message.Type)
+        {
+            case 0:
+                result = CQCodeUtil.DeserializeMessage(message.Text);
+                break;
+            case 1:
+                result = new MessageBody(new List<SoraSegment>
+                {
+                    message.Segment
+                });
+                break;
+            case 2:
+                result = CQCodeUtil.DeserializeMessage(message.Text) + new MessageBody(new List<SoraSegment>
+                {
+                    message.Segment
+                });
+                break;
+            case 3:
+                result = new MessageBody(new List<SoraSegment>
+                {
+                    message.Segment,
+                    SoraSegment.Text(message.Text)
+                });
+                break;
+            default:
+                throw new ArgumentException("SoraMessage Type 未配置。");
+        }
+        return result;
+    }
+
 
     public static string GetRandomName(string path)
     {

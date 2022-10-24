@@ -1,39 +1,26 @@
-﻿using Sora.Entities.Segment;
+﻿using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
-namespace robot;
-
-public static class RobotFunction
+namespace robot
 {
-    public static Dictionary<string, Func<long, string, object,GroupRobot,string>> GetAllFun()
+    public static class RobotFunction
     {
-        return new Dictionary<string, Func<long, string, object,GroupRobot, string>>()
+        public static Dictionary<string, Func<long, string, object, GroupRobot, SoraMessage>> GetAllFun()
         {
-            { "时间",GetTime}
-        };
-    }
-
-    public static string GetTime(long qq, string text, object obj,GroupRobot robot)
-    {
-        if (text == "现在几点了" || text == "几点了")
-        {
+            return new Dictionary<string, Func<long, string, object, GroupRobot, SoraMessage>>
+            {
+                {"随机图片", RandomImage}
+            };
         }
-
-        return "";
-    }
-}
-
-public static class RobotAdminFunction
-{
-    public static Dictionary<string, Func<long, string, object,GroupRobot,string>> GetAllFun()
-    {
-        return new Dictionary<string, Func<long, string, object,GroupRobot, string>>()
+        
+        public static SoraMessage RandomImage(long qq, string text, object obj, GroupRobot robot)
         {
-            { "别说话",RobotOff}
-        };
-    }
-
-    public static string RobotOff(long qq, string text, object obj,GroupRobot robot)
-    {
-        return "";
+            if (text == "嘤嘤嘤")
+            {
+                return Tool.RandomImage("Img");
+            }
+            return SoraMessage.Null;
+        }
     }
 }
