@@ -11,4 +11,14 @@
       <ProjectReference Include="..\Sora\Sora\Sora.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Reference Include="System.Drawing">
+        <HintPath>C:\Users\Guai Li Mao C\.nuget\packages\microsoft.netframework.referenceassemblies.net45\1.0.2\build\.NETFramework\v4.5\System.Drawing.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="System.Drawing.Common" Version="7.0.0-rc.2.22472.3" />
+    </ItemGroup>
+
 </Project>

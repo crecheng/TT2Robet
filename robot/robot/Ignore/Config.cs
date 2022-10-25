@@ -2,5 +2,5 @@
 
 public static partial class Config
 {
-    public static string DataPath = "Group";
+    public static long AdminQQ = 1935598195L;
 }

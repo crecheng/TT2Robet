@@ -6,8 +6,9 @@ public static class RobotModelFactory
 {
     private static Dictionary<string, Type> _allModel=new Dictionary<string, Type>()
     {
-        {"突袭模块", typeof(RaidRobotModel)},
-        {"简单回复模块",typeof(EasyReplyModel)}
+        {"突袭", typeof(RaidRobotModel)},
+        {"简单回复",typeof(EasyReplyModel)},
+        {"嘤嘤嘤",typeof(RandomImgModel)},
     };
     public static RobotModelBase GetModel(string name,GroupRobot group)
     {

@@ -1,4 +1,7 @@
 ﻿using Newtonsoft.Json;
+using Sora.Entities;
+using Sora.Entities.Segment;
+using Sora.Enumeration;
 
 namespace robot.RobotModel;
 
@@ -16,21 +19,34 @@ public class EasyReplyModel : RobotModelBase
 	private string _pathFileName = "PathReply.json";
 	private string _completeFileName = "CompleteReply.json";
 
-	public override async Task<SoraMessage> GetMsg(long sender, bool isAdmin, string text, object obj = null)
+	public override async Task<SoraMessage> GetMsg(long sender, bool isAdmin, string text, object? obj = null)
 	{
 		var msg = AddPathReply(sender, text, isAdmin, obj);
 		if (msg.HaveData())
-		{
 			return msg;
-		}
 
 		msg = AddCompleteReply(sender, text, isAdmin, obj);
 		if (msg.HaveData())
-		{
 			return msg;
+		
+		msg = RemoveKeyReply(sender, text, isAdmin, obj);
+		if (msg.HaveData())
+			return msg;
+		
+		foreach (var (key, value) in _pathReply)
+		{
+			if (text.Contains(key))
+				return value;
+		}
+
+		foreach (var (key, value) in _completeReply)
+		{
+			if (text==key)
+				return value;
 		}
 		
-		msg=RemoveKeyReply(sender,text,isAdmin,obj)
+		return SoraMessage.Null;
+		await Task.CompletedTask;
 	}
 
 	public override void Init(long group,string robotName)
@@ -46,7 +62,7 @@ public class EasyReplyModel : RobotModelBase
 		Save(_completeFileName,JsonConvert.SerializeObject(_completeReply));
 	}
 
-	public SoraMessage AddPathReply(long qq, string text, bool isAdmin, object obj)
+	public SoraMessage AddPathReply(long qq, string text, bool isAdmin, object? obj)
 	{
 		string text2 = text.Replace("\r", "");
 		string[] array = text2.Split('\n');
@@ -86,7 +102,7 @@ public class EasyReplyModel : RobotModelBase
 		return SoraMessage.Null;
 	}
 
-	public SoraMessage AddCompleteReply(long qq, string text, bool isAdmin, object obj)
+	public SoraMessage AddCompleteReply(long qq, string text, bool isAdmin, object? obj)
 	{
 		if (text.StartsWith(RobotName))
 		{
@@ -129,7 +145,7 @@ public class EasyReplyModel : RobotModelBase
 		return SoraMessage.Null;
 	}
 
-	public SoraMessage RemoveKeyReply(long qq, string text, bool isAdmin, object obj)
+	public SoraMessage RemoveKeyReply(long qq, string text, bool isAdmin, object? obj)
 	{
 		if (text.StartsWith(RobotName))
 		{

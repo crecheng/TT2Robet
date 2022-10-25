@@ -4,7 +4,7 @@ public class RaidRobotModel : RobotModelBase
 {
     public override string ModelName { get; } = "RaidRobotModel";
 
-    public override async Task<SoraMessage> GetMsg(long sender,bool isAdmin, string text, object obj = null)
+    public override async Task<SoraMessage> GetMsg(long sender,bool isAdmin, string text, object? obj = null)
     {
         return await base.GetMsg(sender,isAdmin, text, obj);
     }

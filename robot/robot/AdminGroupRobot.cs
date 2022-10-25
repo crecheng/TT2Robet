@@ -11,14 +11,7 @@ public class AdminGroupRobot: GroupSoraRobot
 {
     public AdminGroupRobot(long id) : base(id)
     {
+        
     }
     
-    
-
-    public override async Task<string> GetMsg(long sendPlayer, string text, object? obj = null)
-    {
-        GroupMessageEventArgs? args = obj as GroupMessageEventArgs;
-
-        return "";
-    }
 }

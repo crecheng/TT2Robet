@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using Sora.Entities;
 using Sora.Entities.Segment;
 
 namespace robot
@@ -15,10 +16,12 @@ namespace robot
 		public const int StringAndSegment = 2;
 		
 		public const int SegmentAndString = 3;
-		
+
 		public string Text;
 		
 		public SoraSegment Segment;
+
+		private MessageBody Body =null;
 		
 		public static readonly SoraMessage Null = new SoraMessage
 		{
@@ -29,7 +32,7 @@ namespace robot
 		{
 			this.Text = text;
 			this.Type = 0;
-			this.Segment = default(SoraSegment);
+			this.Segment = SoraSegment.Text(text);
 		}
 		
 		public SoraMessage(SoraSegment segment)
@@ -43,6 +46,7 @@ namespace robot
 		{
 			this.Text = text;
 			this.Segment = segment;
+			Body = SoraSegment.Text(text) + segment;
 			this.Type = 2;
 		}
 		
@@ -50,7 +54,13 @@ namespace robot
 		{
 			this.Text = text;
 			this.Segment = segment;
+			Body = segment+SoraSegment.Text(text);
 			this.Type = 3;
+		}
+
+		public MessageBody GetSendMsg()
+		{
+			return Body == null ? Segment : Body;
 		}
 		
 		public bool HaveData()
@@ -66,7 +76,7 @@ namespace robot
 			}
 			return new SoraMessage(text);
 		}
-		
+
 		public static implicit operator SoraMessage(SoraSegment segment)
 		{
 			return new SoraMessage(segment);

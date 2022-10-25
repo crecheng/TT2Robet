@@ -12,6 +12,8 @@ public class PrivateRobot: IRobot
 
     public async Task<bool> SendMsg(string text, object? obj = null)
     {
+        await Task.CompletedTask;
         return true;
+        await Task.CompletedTask;
     }
 }

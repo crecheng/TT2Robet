@@ -9,23 +9,11 @@ namespace robot
 	public static class RobotFactory
 	{
 		private static string Path = "Group";
-		
-		private static string pathReplyPath = "pathReply.json";
-		
-		private static string completeReplyPath = "completeReply.json";
-		
-		private static string functionPath = "fun.json";
-		
-		private static string adminFunctionPath = "adminFun.json";
-		
+
 		private static string adminQQPath = "adminQQ.json";
 		
 		private static string groupConfigPath = "config.json";
-		
-		private static Dictionary<string, Func<long, string, object, GroupRobot, SoraMessage>> fun = RobotFunction.GetAllFun();
-		
-		private static Dictionary<string, Func<long, string, bool, object, GroupRobot, SoraMessage>> adminFun = RobotAdminFunction.GetAllFun();
-		public static bool InitGroupRobot(long id, GroupSoraRobot robot)
+		public static bool InitGroupRobot(long id, GroupRobot robot)
 		{
 			string text = $"{Path}/{id}";
 			if (!Directory.Exists(text))
@@ -37,34 +25,18 @@ namespace robot
 			{
 				string path = text + "/" + groupConfigPath;
 				robot.Config = GetJsonOrNew<RobotConfig>(path);
-				string path2 = text + "/" + pathReplyPath;
-				robot.PathReply = GetJsonOrNew<Dictionary<string, string>>(path2);
-				string path3 = text + "/" + completeReplyPath;
-				robot.CompleteReply = GetJsonOrNew<Dictionary<string, string>>(path3);
-				string path4 = text + "/" + adminQQPath;
-				robot.Admin = GetJsonOrNew<List<long>>(path4);
-				string path5 = text + "/" + functionPath;
-				robot.FunList = GetJsonOrNew<List<string>>(path5);
-				foreach (string key in robot.FunList)
+				
+				if(!robot.Config.Admin.Contains(Config.AdminQQ))
+					robot.Config.Admin.Add(Config.AdminQQ);
+				
+				foreach (var s in robot.Config.RobotModel)
 				{
-					Func<long, string, object, GroupRobot, SoraMessage> func;
-					RobotFactory.fun.TryGetValue(key, out func);
-					if (func != null)
-					{
-						robot.Fun.Add(key, func);
-					}
-				}
-				List<string> jsonOrNew = RobotFactory.GetJsonOrNew<List<string>>(text + "/" + RobotFactory.adminFunctionPath);
-				foreach (string key2 in jsonOrNew)
-				{
-					Func<long, string, bool, object, GroupRobot, SoraMessage> func2;
-					RobotFactory.adminFun.TryGetValue(key2, out func2);
-					if (func2 != null)
-					{
-						robot.AdminFun.Add(key2, func2);
-					}
+					var model = RobotModelFactory.GetModel(s, robot);
+					if(model!=null)
+						robot.RobotModel.Add(s,model);
 				}
 				result = true;
+				SaveGroupRobot(robot);
 			}
 			catch (Exception value)
 			{
@@ -74,7 +46,7 @@ namespace robot
 			return result;
 		}
 		
-		public static bool SaveGroupRobot(GroupSoraRobot robot)
+		public static bool SaveGroupRobot(GroupRobot robot)
 		{
 			if (robot == null)
 			{
@@ -86,12 +58,6 @@ namespace robot
 				Directory.CreateDirectory(text);
 			}
 			File.WriteAllText(text + "/" + groupConfigPath, JsonConvert.SerializeObject(robot.Config));
-			File.WriteAllText(text + "/" + pathReplyPath, JsonConvert.SerializeObject(robot.PathReply));
-			string path = text + "/" + completeReplyPath;
-			File.WriteAllText(path, JsonConvert.SerializeObject(robot.CompleteReply));
-			robot.CompleteReply = GetJsonOrNew<Dictionary<string, string>>(path);
-			File.WriteAllText(text + "/" + adminQQPath, JsonConvert.SerializeObject(robot.Admin));
-			File.WriteAllText(text + "/" + functionPath, JsonConvert.SerializeObject(robot.FunList));
 			return true;
 		}
 		
@@ -103,7 +69,7 @@ namespace robot
 			}
 			return JsonConvert.DeserializeObject<T>(File.ReadAllText(path));
 		}
-		
+
 
 	}
 }

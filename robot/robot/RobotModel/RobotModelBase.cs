@@ -14,7 +14,7 @@ public class RobotModelBase
 
     public bool Work;
 
-    public virtual async Task<SoraMessage> GetMsg(long sender,bool isAdmin, string text, object obj = null)
+    public virtual async Task<SoraMessage> GetMsg(long sender,bool isAdmin, string text, object? obj = null)
     {
         return SoraMessage.Null;
         await Task.CompletedTask;
@@ -29,6 +29,9 @@ public class RobotModelBase
     public void Save(string path, string text)
     {
         var file = $"{Config.DataPath}\\{Group}\\{ModelName}\\{path}";
+        var p= Path.GetDirectoryName(file);
+        if (!Directory.Exists(p))
+            Directory.CreateDirectory(p);
         File.WriteAllText(file,text);
     }
 

@@ -20,6 +20,8 @@ public class GroupSoraRobot : GroupRobot
         Init();
     }
 
+
+
     public void Init()
     {
         var success= RobotFactory.InitGroupRobot(ID, this);
@@ -30,25 +32,17 @@ public class GroupSoraRobot : GroupRobot
         }
     }
     
-    public override async Task<string> GetMsg(long sendPlayer, string text, object? obj = null)
+    protected override async Task<string> GetMsgInline(long sendPlayer, string text, object? obj = null)
     {
-        foreach (var i in CompleteReply)
+        foreach (var (key, value) in RobotModel)
         {
-            if (text == i.Key)
+            var res= await value.GetMsg(sendPlayer, IsAdmin(sendPlayer), text, obj);
+            if (res.HaveData())
             {
-                await SendMsg(i.Value);
-                return "";
+                await SendMsgObj(res.GetSendMsg(), obj);
             }
         }
-        foreach (var i in PathReply)
-        {
-            if (text.IndexOf(i.Key, StringComparison.Ordinal)>=0)
-            {
-                await SendMsg(i.Value);
-                return "";
-            }
-        }
-
+        await Task.CompletedTask;
         return "";
     }
     public override async Task<bool> SendMsg(string text, object? obj = null)
@@ -63,11 +57,11 @@ public class GroupSoraRobot : GroupRobot
 
         return false;
     }
-    public async Task<bool> SendMsgObj(MessageBody text, object? obj = null)
+    public async Task<bool> SendMsgObj(MessageBody body, object? obj = null)
     {
         if (obj is GroupMessageEventArgs args)
         {
-            await SendMsgObj(args, text);
+            await SendMsgObj(args, body);
             return true;
         }
         else
