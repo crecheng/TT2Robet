@@ -43,6 +43,16 @@ public class RobotModelBase
         return String.Empty;
     }
 
+    public string GetModelDir()
+    {
+        return $"{Config.DataPath}\\{Group}\\{ModelName}\\";
+    }
+
+    public async Task SendGroupMsg(SoraMessage message)
+    {
+       await Manage.SendGroupMsg(Group, message);
+    }
+
     public T Load<T>(string path)
     {
         var file = $"{Config.DataPath}\\{Group}\\{ModelName}\\{path}";

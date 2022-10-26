@@ -175,9 +175,9 @@
             switch (mark)
             {
                 case '1':
-                    return "O";
-                case '2':
                     return "X";
+                case '2':
+                    return "O";
                 default: return " ";
             }
         }

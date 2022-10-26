@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 namespace testrobot
 {
     [SuppressMessage("Interoperability", "CA1416:验证平台兼容性")]
-    public static class Expand
+    public static class ClubTool
     {
         public static string ShowAll<T>(this List<T> list,string separator=", ",string head="",Func<T,string> action=null)
         {
@@ -155,6 +155,30 @@ namespace testrobot
                 g.DrawString(Regex.Unescape(p.name),font,greenBrush,30,y+2);
                 g.DrawString(dec.ShowNum(),font,greenBrush,280,y+2);
                 g.DrawString(p.num_attacks.ToString(),font,Brushes.HotPink, 380,y+2);
+            }
+            bitmap.Save(path);
+        }
+
+        public static void DrawPlayerCard(Dictionary<string,int> card, string path,string imgPath)
+        {
+            int len = card.Count / 7;
+            Bitmap bitmap = new Bitmap(32 * 7, (len + 1) * 64);
+            Graphics g=Graphics.FromImage(bitmap);
+            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
+            int i = 0;
+            foreach (var (key, value) in card)
+            {
+                int x = i % 7;
+                int y = i / 7;
+                if (File.Exists(imgPath + key + ".png"))
+                {
+                    var png = Image.FromFile(imgPath + key + ".png");
+                    g.DrawImage(png, new Point(x * 32, y * 64));
+                }
+
+                g.DrawString(value.ToString(), font, Brushes.Black, new Point(x * 32, y * 64 + 32));
+                i++;
             }
             bitmap.Save(path);
         }

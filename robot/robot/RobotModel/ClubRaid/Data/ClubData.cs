@@ -73,7 +73,7 @@ namespace testrobot
                 titan_lords.current.Target=new RaidAttackTarget(id,titan_lords.target_states[id]);
             }
             
-            RaidBegin = Expand.Parse(clan_raid.raid_active_at_utc)+new TimeSpan(8,0,0);
+            RaidBegin = ClubTool.Parse(clan_raid.raid_active_at_utc)+new TimeSpan(8,0,0);
             NextAttackTime = RaidBegin + new TimeSpan(clan_raid.max_potential_raid_attacks / 5 * 12, 0, 0);
         }
     }
