@@ -12,7 +12,6 @@ namespace testrobot
 {
     public class TT2Post
     {
-
         public TT2PostConfig Tt2Post;
         public PlayerData Player;
         public ClubData Club;
@@ -28,8 +27,6 @@ namespace testrobot
 
         public TT2Post()
         {
-            Tt2Post = new TT2PostConfig();
-            Tt2Post.Init();
         }
 
 
@@ -41,21 +38,21 @@ namespace testrobot
             return Player = JsonConvert.DeserializeObject<PlayerData>(s);
         }
 
-        public ClubData RaidCurrent()
+        public ClubData RaidCurrent(string tmpFile)
         {
             string s = Post(TT2Fun.RaidCurrent);
             if (s.Length < 200)
                 OutError("PlayerProfile");
-            Program.SaveFile("raid", s);
+            File.WriteAllText(tmpFile,s);
             return Club = JsonConvert.DeserializeObject<ClubData>(s);
         }
 
-        public MsgDataList GetForum(int last)
+        public MsgDataList GetForum(string tmpFile)
         {
-            string s = Post(TT2Fun.Forum, new string[] {last.ToString()});
+            string s = Post(TT2Fun.Forum, new string[] {Tt2Post.forum.ToString()});
             if (s.Length < 200)
                 OutError("GetForum");
-            Program.SaveFile("Forum", s);
+            File.WriteAllText(tmpFile,s);
             return JsonConvert.DeserializeObject<MsgDataList>(s);
         }
 
@@ -190,6 +187,46 @@ namespace testrobot
 
     public partial class TT2PostConfig
     {
+        public string playerid ;
+        public string SessionId ;
+        public string token  ;
+        public string vendor ;
+        public string ad ;
+        public int stage ;
+        public int forum ;
+        public Dictionary<TT2Post.TT2Fun, TT2Post.SendInfo> key;
+        public string name;
+        public string Version = "5.22.0";
+
+
+        public string GetEasyData()
+        {
+            Dictionary<string, object> dictionary = new Dictionary<string, object>()
+            {
+                {"playerid",playerid},
+                {"SessionId",SessionId},
+                {"token",token},
+                {"vendor",vendor},
+                {"ad",ad},
+            };
+
+            return JsonConvert.SerializeObject(dictionary);
+        }
+        public bool CanUse()
+        {
+            bool can = !(string.IsNullOrEmpty(playerid) || playerid.Length < 10);
+            if (string.IsNullOrEmpty(SessionId) || SessionId.Length < 10)
+                can = false;
+            if (string.IsNullOrEmpty(token) || token.Length < 10)
+                can = false;
+            if (string.IsNullOrEmpty(vendor) || vendor.Length < 10)
+                can = false;
+            return can;
+        }
+        public string Save()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
 
 }

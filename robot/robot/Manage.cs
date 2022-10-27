@@ -1,4 +1,5 @@
 ﻿using Sora;
+using Sora.Entities;
 using Sora.Entities.Base;
 using Sora.EventArgs.SoraEvent;
 using Sora.Interfaces;
@@ -35,6 +36,21 @@ public static class Manage
             await robot.GetMsg(_, args);
     }
 
+    public async static Task SendGroupMsg(long group, MessageBody body)
+    {
+        await Api.SendGroupMessage(group, body);
+    }
+
+    public async static Task UploadFile(long group, string file,string upName)
+    {
+        await Api.UploadGroupFile(group, $"{AppDomain.CurrentDomain.BaseDirectory}{file}" , upName);
+    }
+
+    public async static Task SendGroupMsg(long group, SoraMessage body)
+    {
+        await SendGroupMsg(group, body.GetSendMsg());
+    }
+
     static async void CommandExceptionHandle(Exception exception, BaseMessageEventArgs eventArgs, string log)
     {
         string msg = $"bug了！！！\r\n{log}\r\n{exception.Message}";
@@ -56,7 +72,6 @@ public static class Manage
             SendCommandErrMsg      = false,
             CommandExceptionHandle = CommandExceptionHandle,
         });
-        
         service.Event.OnGroupMessage += GetGroupMsg;
         service.Event.OnSelfGroupMessage += (_, eventArgs) =>
         {
@@ -64,10 +79,11 @@ public static class Manage
             return ValueTask.CompletedTask;
         };
         
-        
         sora = service;
-        
         await service.StartService()
             .RunCatch(e => Log.Error("Sora Service", Log.ErrorLogBuilder(e)));
+        await Task.Delay(1000);
+        var list = await Api.GetGroupList();
+        list.groupList.ForEach(id=>_groupRobots.Add(id.GroupId,new GroupSoraRobot(id.GroupId)));
     }
 }

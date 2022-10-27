@@ -8,6 +8,7 @@ namespace testrobot
         public string Player;
         public string PlayerName;
         public DmgData Data;
+        public DateTime Time;
 
 
         public static List<AttackShareInfo> GetAllAttackShareInfo(MsgDataList dataList)
@@ -22,6 +23,7 @@ namespace testrobot
                     d.Player = msg.player_from;
                     d.PlayerName = msg.name;
                     d.Data = GetDmg(msg.message);
+                    d.Time = ClubTool.Parse(msg.timestamp);
                     list.Add(d);
                 }
             }

@@ -19,8 +19,12 @@ public class EasyReplyModel : RobotModelBase
 	private string _pathFileName = "PathReply.json";
 	private string _completeFileName = "CompleteReply.json";
 
-	public override async Task<SoraMessage> GetMsg(long sender, bool isAdmin, string text, object? obj = null)
+	public override async Task<SoraMessage> GetMsg(GroupMsgData data)
 	{
+		long sender = data.Sender;
+		bool isAdmin = data.IsAdmin;
+		string text = data.text;
+		object obj = data.obj;
 		var msg = AddPathReply(sender, text, isAdmin, obj);
 		if (msg.HaveData())
 			return msg;

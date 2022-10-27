@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualBasic;
+using robot.RobotModel;
 using Sora.Entities;
 using Sora.EventArgs.SoraEvent;
 using Sora.Interfaces;
@@ -36,7 +37,7 @@ public class GroupSoraRobot : GroupRobot
     {
         foreach (var (key, value) in RobotModel)
         {
-            var res= await value.GetMsg(sendPlayer, IsAdmin(sendPlayer), text, obj);
+            var res = await value.GetMsg(new GroupMsgData(sendPlayer, IsAdmin(sendPlayer), text, obj));
             if (res.HaveData())
             {
                 await SendMsgObj(res.GetSendMsg(), obj);

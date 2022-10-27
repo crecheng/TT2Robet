@@ -14,7 +14,7 @@ public class RobotModelBase
 
     public bool Work;
 
-    public virtual async Task<SoraMessage> GetMsg(long sender,bool isAdmin, string text, object? obj = null)
+    public virtual async Task<SoraMessage> GetMsg(GroupMsgData data)
     {
         return SoraMessage.Null;
         await Task.CompletedTask;
@@ -41,6 +41,21 @@ public class RobotModelBase
         if (File.Exists(file))
             return File.ReadAllText(file);
         return String.Empty;
+    }
+
+    public string GetModelDir()
+    {
+        return $"{Config.DataPath}\\{Group}\\{ModelName}\\";
+    }
+
+    public async Task SendGroupMsg(SoraMessage message)
+    {
+       await Manage.SendGroupMsg(Group, message);
+    }
+
+    public async Task UploadGroupFile(string file,string name)
+    {
+        await Manage.UploadFile(Group, GetModelDir() + file, name);
     }
 
     public T Load<T>(string path)
