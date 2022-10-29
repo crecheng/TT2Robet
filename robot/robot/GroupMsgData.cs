@@ -4,13 +4,15 @@ public class GroupMsgData
 {
     public long Sender;
     public bool IsAdmin;
-    public string text;
+    public bool IsGroupAdmin;
+    public string Text;
     public object obj;
-    public GroupMsgData(long sender, bool isAdmin, string text, object obj)
+    public GroupMsgData(long sender, bool isAdmin,bool isGroupAdmin, string text, object obj)
     {
         Sender = sender;
+        IsGroupAdmin = isAdmin;
         IsAdmin = isAdmin;
-        this.text = text;
+        Text = text;
         this.obj = obj;
     }
 }

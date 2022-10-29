@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using testrobot;
 
@@ -28,9 +29,9 @@ public partial class RaidRobotModel : RobotModelBase
     private Dictionary<string, Func<GroupMsgData,string, Task<SoraMessage>>> _argLenFun;
     public override async Task<SoraMessage> GetMsg(GroupMsgData data)
     {
-        if (data.text.StartsWith(_startString))
+        if (data.Text.StartsWith(_startString))
         {
-            var arg = data.text.Substring(_startString.Length);
+            var arg = data.Text.Substring(_startString.Length);
             if (_argFun.ContainsKey(arg))
                 return await _argFun[arg].Invoke(data);
             
@@ -46,7 +47,7 @@ public partial class RaidRobotModel : RobotModelBase
         return await base.GetMsg(data);
     }
     
-    private string GetNearAtkInfo(DateTime start, DateTime end)
+    private string GetNearAtkInfo(DateTime start, DateTime end,bool allPlayer=false)
     {
         int c = 0;
         Dictionary<string, List<AttackShareInfo>> all = new Dictionary<string, List<AttackShareInfo>>();
@@ -58,6 +59,15 @@ public partial class RaidRobotModel : RobotModelBase
                 if(!all.ContainsKey(info.Player))
                     all.Add(info.Player,new List<AttackShareInfo>());
                 all[info.Player].Add(info);
+            }
+        }
+
+        if (allPlayer)
+        {
+            foreach (var (key, value) in _data.PlayerId)
+            {
+                if(!all.ContainsKey(value))
+                    all.Add(value,new List<AttackShareInfo>());
             }
         }
 
@@ -75,24 +85,35 @@ public partial class RaidRobotModel : RobotModelBase
 
     private void RefreshRaidDataSave()
     {
+        if(!_club.HaveRaid)
+            return;
         _data.PlayerId.Clear();
         foreach (var playerData in _club.clan_raid.leaderboard)
         {
             var id = playerData.player_code;
             var name = Regex.Unescape(playerData.name);
             _data.PlayerId.Add(name,id);
+            if(!_data.Player.ContainsKey(id))
+                _data.Player.Add(id,new PlayerData()
+                {
+                    Code = id,
+                    Name = name
+                });
         }
     }
     
-    private void RefreshRaidCardDataSave(List<AttackShareInfo> cards)
+    private async Task RefreshRaidCardDataSave(List<AttackShareInfo> cards)
     {
         int max = _data.LastFromId;
-        
+        Dictionary<string, int> share = new Dictionary<string, int>();
         foreach (var atk in cards)
         {
             if (atk.Id > max)
             {
                 _data.AttackInfos.Add(atk);
+                if(!share.ContainsKey(atk.Player))
+                    share.Add(atk.Player,0);
+                share[atk.Player] += 1;
                 max = atk.Id;
                 if(!_data.Player.ContainsKey(atk.Player))
                     _data.Player.Add(atk.Player,new PlayerData()
@@ -112,10 +133,99 @@ public partial class RaidRobotModel : RobotModelBase
             }
         }
 
+        if (_club.HaveRaid)
+        {
+            var d = RefreshAtkAndShareCount(share);
+            if (d.Count > 0)
+            {
+                await SendNotSharePlayer(d);
+            }
+        }
         _data.LastFromId = max;
         SaveRaidData();
     }
-    
+
+    private Dictionary<string, int> RefreshAtkAndShareCount(Dictionary<string, int> share)
+    {
+        CheckNewRaid();
+        Dictionary<string, int> dic = new Dictionary<string, int>();
+        foreach (var data in _club.clan_raid.leaderboard)
+        {
+            var id = data.player_code;
+            var player = _data.Player[id];
+            var count = data.num_attacks;
+            var last = player.AtkCount;
+            var lastNotShare = player.LastNotShareCount;
+            
+            share.TryGetValue(id, out int shareCount);
+            var atk = count - last;
+            var notShareThis = atk - shareCount;
+            var notShare = lastNotShare + notShareThis;
+            if (atk > 0)
+            {
+                player.LastNotShareCount = notShare;
+                
+                player.AtkCount = data.num_attacks;
+                player.ShareCount += shareCount;
+                player.NotShareCount += notShareThis;
+                if(player.LastNotShareCount>0)
+                    Console.WriteLine($"{Regex.Unescape(data.name)}\tA:{atk}\tS:{shareCount}\tL:{player.LastNotShareCount}");
+            }
+            else
+            {
+                player.LastNotShareCount = notShare;
+                if (player.LastNotShareCount > 0)
+                {
+                    dic.Add(player.Code,player.LastNotShareCount);
+                    player.LastNotShareCount = 0;
+                }
+            }
+
+        }
+
+        return dic;
+    }
+
+    private async Task SendNotSharePlayer(Dictionary<string, int> data)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.Append("以下成员打了没分享");
+        foreach (var (key, value) in data)
+        {
+            sb.Append($"\n[{_data.Player[key].Name}]-[{value}]");
+        }
+        Console.WriteLine(sb);
+        if (_data.TipNotShare)
+            await SendGroupMsg(sb.ToString());
+    }
+
+    private void CheckNewRaid()
+    {
+        int saveCount = 0;
+        int allCount = 0;
+        foreach (var data in _club.clan_raid.leaderboard)
+        {
+            var player = _data.Player[data.player_code];
+            saveCount += player.AtkCount;
+            allCount += data.num_attacks;
+        }
+
+        if (saveCount > allCount)
+        {
+            NewRaid();
+        }
+    }
+
+    private void NewRaid()
+    {
+        foreach (var data in _data.Player)
+        {
+            data.Value.AtkCount = 0;
+            data.Value.ShareCount = 0;
+            data.Value.NotShareCount = 0;
+        }
+    }
+
 
 
     private async Task<SoraMessage> GetRaidConfig(GroupMsgData data)
@@ -129,7 +239,7 @@ public partial class RaidRobotModel : RobotModelBase
             await Task.Delay(_lenCd * 10000);
             while (true)
             {
-                Console.WriteLine($"{Group}-部落刷新数据");
+                Console.WriteLine($"{DateTime.Now}-{Group}-部落刷新数据");
                 if (_config.CanUse())
                 {
                     ClubData tmp = _post.RaidCurrent(GetModelDir()+"RaidCurrent.json");
@@ -141,7 +251,7 @@ public partial class RaidRobotModel : RobotModelBase
                         _club = tmp;
                     }
                     RefreshRaidDataSave();
-                    RefreshRaidCardDataSave(all);
+                    await RefreshRaidCardDataSave(all);
                 }
                 
                 await Task.Delay(_refreshCd);
@@ -152,12 +262,20 @@ public partial class RaidRobotModel : RobotModelBase
     private async Task<ClubData> RefreshData()
     {
         ClubData tmp = null;
-        await Task.Run(() =>
+        await Task.Run(async () =>
         {
             if (_config.CanUse())
             {
                 tmp = _post.RaidCurrent(GetModelDir()+"RaidCurrent.json");
+                var msg = _post.GetForum(GetModelDir() + "GetForum.json");
+                var all= AttackShareInfo.GetAllAttackShareInfo(msg);
                 tmp.Init();
+                if (tmp != null)
+                {
+                    _club = tmp;
+                }
+                RefreshRaidDataSave();
+                await RefreshRaidCardDataSave(all);
             }
         });
         return tmp;
@@ -180,6 +298,7 @@ public partial class RaidRobotModel : RobotModelBase
         {
             { "突袭命令", GetCmd },
             { "突袭血量", LookHp },
+            { "卡名字", ShowCardName },
             { "突袭刷新", RefreshData },
             { "查看突袭config", GetRaidConfig },
             { "突袭伤害", LookDmg },
@@ -187,14 +306,18 @@ public partial class RaidRobotModel : RobotModelBase
             { "卡片数据", GetMyCard },
             { "全员卡", GetAllCard },
             { "导出全员卡", UploadAllCard },
+            { "导出攻击", UploadAtkInfo },
             { "查询攻击本轮", GetNearAtkInfoThisRound },
             { "本轮时间", GetThisRoundTime },
+            { "分享警告", TipNotShareSwitch },
+            { "重置并导出攻击", ResetAtkInfo }
         };
 
         _argLenFun = new Dictionary<string, Func<GroupMsgData, string, Task<SoraMessage>>>()
         {
             { "游戏绑定", QQLinkGame },
             { "查询攻击时间", GetNearAtkInfo },
+            { "谁用了", GetWhoUesCard },
         };
 
     }
@@ -212,6 +335,7 @@ public partial class RaidRobotModel : RobotModelBase
         public List<AttackShareInfo> AttackInfos = new List<AttackShareInfo>();
 
         public int LastFromId;
+        public bool TipNotShare;
     }
 
     class PlayerData
@@ -221,10 +345,14 @@ public partial class RaidRobotModel : RobotModelBase
         public string Code;
         public string Name;
         public int RaidLevel;
+        public int AtkCount;
+        public int ShareCount;
+        public int NotShareCount;
+        public int LastNotShareCount;
 
         public string EasyInfo()
         {
-            return $"{Name}-{Code}\n" +
+            return $"{Name}\n{Code}\n" +
                    $"突等：{RaidLevel}";
         }
     }

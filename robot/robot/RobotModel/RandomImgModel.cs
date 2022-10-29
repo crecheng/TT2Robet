@@ -6,7 +6,7 @@ public class RandomImgModel : RobotModelBase
     public string Key = "嘤嘤嘤";
     public override async Task<SoraMessage> GetMsg(GroupMsgData data)
     {
-        if(data.text==Key)
+        if(data.Text==Key)
             return Tool.RandomImage("Img");
         return SoraMessage.Null;
         await Task.CompletedTask;

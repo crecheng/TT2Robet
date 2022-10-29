@@ -30,8 +30,8 @@ namespace testrobot
 
         public int total_raid_player_xp;
 
+        public bool HaveRaid => clan_raid.state != "inactive";
 
-        
         public DateTime RaidBegin;
         public DateTime NextAttackTime;
 
@@ -60,6 +60,10 @@ namespace testrobot
         }
         public void Init()
         {
+            if (!HaveRaid)
+            {
+                return;
+            }
             titan_lords.blueprints.ForEach((data) =>
             {
                 if (titan_lords.target_states.ContainsKey(data.enemy_id))

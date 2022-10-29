@@ -1,6 +1,8 @@
 ﻿using Microsoft.VisualBasic;
 using robot.RobotModel;
 using Sora.Entities;
+using Sora.Entities.Info;
+using Sora.Enumeration.EventParamsType;
 using Sora.EventArgs.SoraEvent;
 using Sora.Interfaces;
 using Sora.Util;
@@ -20,8 +22,7 @@ public class GroupSoraRobot : GroupRobot
         Open = true;
         Init();
     }
-
-
+    
 
     public void Init()
     {
@@ -33,11 +34,11 @@ public class GroupSoraRobot : GroupRobot
         }
     }
     
-    protected override async Task<string> GetMsgInline(long sendPlayer, string text, object? obj = null)
+    protected override async Task<string> GetMsgInline(long sendPlayer, string text,int role, object? obj = null)
     {
         foreach (var (key, value) in RobotModel)
         {
-            var res = await value.GetMsg(new GroupMsgData(sendPlayer, IsAdmin(sendPlayer), text, obj));
+            var res = await value.GetMsg(new GroupMsgData(sendPlayer, IsAdmin(sendPlayer),role>=2, text, obj));
             if (res.HaveData())
             {
                 await SendMsgObj(res.GetSendMsg(), obj);
@@ -45,6 +46,12 @@ public class GroupSoraRobot : GroupRobot
         }
         await Task.CompletedTask;
         return "";
+    }
+
+    public async Task<GroupMemberInfo> GetMemberInfo(long qq)
+    {
+        var m = await Manage.Api.GetGroupMemberInfo(ID,qq);
+        return m.memberInfo;
     }
     public override async Task<bool> SendMsg(string text, object? obj = null)
     {
@@ -74,7 +81,8 @@ public class GroupSoraRobot : GroupRobot
 
     public async ValueTask GetMsg(string _, GroupMessageEventArgs args)
     {
-        await GetMsg(args.Sender.Id, args.Message.RawText, args);
+        
+        await GetMsg(args.Sender.Id, args.Message.RawText,(int)args.SenderInfo.Role, args);
     }
 
     public async ValueTask SendMsg(GroupMessageEventArgs args, string text)

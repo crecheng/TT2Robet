@@ -23,7 +23,7 @@ public class EasyReplyModel : RobotModelBase
 	{
 		long sender = data.Sender;
 		bool isAdmin = data.IsAdmin;
-		string text = data.text;
+		string text = data.Text;
 		object obj = data.obj;
 		var msg = AddPathReply(sender, text, isAdmin, obj);
 		if (msg.HaveData())

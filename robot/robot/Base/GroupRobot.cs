@@ -12,16 +12,16 @@ public class GroupRobot: IRobot
     public string RobotName = "小助手";
     public bool IsAdmin(long qq) => Config.Admin.Contains(qq);
     
-    public async Task<string> GetMsg(long sendPlayer, string text, object? obj = null)
+    public async Task<string> GetMsg(long sendPlayer, string text,int role, object? obj = null)
     {
         if(Config.Admin.Contains(sendPlayer))
             await AdminFun(sendPlayer, text, obj);
         if(Config.Use)
-            return await GetMsgInline(sendPlayer, text, obj);
+            return await GetMsgInline(sendPlayer, text,role, obj);
         return "";
     }
     
-    protected virtual async Task<string> GetMsgInline(long sendPlayer, string text, object? obj = null)
+    protected virtual async Task<string> GetMsgInline(long sendPlayer, string text,int role, object? obj = null)
     {
         return "";
     }

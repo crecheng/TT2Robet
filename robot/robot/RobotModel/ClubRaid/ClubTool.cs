@@ -11,6 +11,79 @@ namespace testrobot
     [SuppressMessage("Interoperability", "CA1416:验证平台兼容性")]
     public static class ClubTool
     {
+
+        public static List<int> CardCost = new List<int>()
+        {
+            0,
+            20, 125, 280, 480, 760,
+            1100, 1660, 2350, 3150, 4250,
+            5600, 7250, 9150, 11950, 15600,
+            19500, 23585, 27775, 32050, 36700,
+            41500, 46700, 52050, 57470, 62980,
+            68580, 74270, 80100, 86945, 93850,
+            100820, 107850, 114940, 122095, 129315,
+            136595, 143940, 151405, 159490, 167705,
+            175980, 184320, 194820, 205620, 216570,
+            227670, 239070, 250620, 262320, 274320,
+            286620, 299220, 312120, 325320, 338820,
+            352620, 366720, 381120, 395820, 410820,
+        };
+
+        public static Dictionary<string, string> CardName = new Dictionary<string, string>()
+        {
+            {"WhipOfLightning","电鞭"},
+            {"FinisherAttack","凯旋"},
+            {"TotemFairySkill","仙女"},
+            {"PlagueAttack","瘟疫"},
+            {"TeamTactics","团队"},
+            {"InnerTruth","灵魂"},
+            {"SkullBash","头骨"},
+            {"RazorWind","风刃"},
+            {"Swarm","蜂巢"},
+            {"MentalFocus","气体"},
+            {"Disease","放射"},
+            {"Purify","净化"},
+            {"LimbBurst","熊掌"},
+            {"SuperheatMetal","菱形"},
+            {"MoonBeam","月光"},
+            {"RuneAttack","蓝球"},
+            {"ImpactAttack","振奋"},
+            {"CrushingVoid","紫球"},
+            {"Shadow","影子"},
+            {"LimbSupport","藤蔓"},
+            {"Fuse","核融"},
+            {"Fragmentize","破甲"},
+            {"FlakShot","防空"},
+            {"DecayingAttack","腐败"},
+            {"ExecutionersAxe","锤子"},
+            {"Haymaker","激光"},
+            {"BurstCount","导弹"},
+            {"ChainLightning","红链"},
+            {"BurningAttack","火海"},
+            {"BurstBoost","先祖"},
+            {"PoisonAttack","酸雨"},
+            {"SpinalTap","骨骼"},
+            {"RuinousRust","紫雨"},
+        };
+
+        private static Dictionary<string, string> _cardNName;
+
+
+        public static string NameToIDCard(string name)
+        {
+            if (_cardNName == null)
+            {
+                _cardNName = new Dictionary<string, string>();
+                foreach (var (key, value) in CardName)
+                {
+                    _cardNName.Add(value,key);
+                }
+            }
+
+            if (_cardNName.ContainsKey(name))
+                return _cardNName[name];
+            return string.Empty;
+        }
         public static string ShowAll<T>(this List<T> list,string separator=", ",string head="",Func<T,string> action=null)
         {
             if (list == null || list.Count <= 1)
@@ -159,27 +232,42 @@ namespace testrobot
             bitmap.Save(path);
         }
 
-        public static void DrawPlayerCard(Dictionary<string,int> card, string path,string imgPath)
+        public static void DrawPlayerCard(string player, Dictionary<string,int> card, string path,string imgPath)
         {
-            int len = card.Count / 7;
-            Bitmap bitmap = new Bitmap(32 * 7, (len + 1) * 64);
+            int rowCount = 10;
+            int len = (card.Count-1) / rowCount+1;
+            Bitmap bitmap = new Bitmap(32 * rowCount, (len + 1) * 64);
             Graphics g=Graphics.FromImage(bitmap);
             Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            Font sFont = new Font(FontFamily.GenericMonospace, 12f,FontStyle.Bold);
             g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
-            int i = 0;
-            foreach (var (key, value) in card)
+            int i = rowCount;
+            List<string> name = new List<string>(card.Keys);
+            name.Sort((x, y) => card[y] - card[x]);
+            int all = 0;
+            int cost = 0;
+            foreach (var key in name)
             {
-                int x = i % 7;
-                int y = i / 7;
+                int x = i % rowCount;
+                int y = i / rowCount;
                 if (File.Exists(imgPath + key + ".png"))
                 {
                     var png = Image.FromFile(imgPath + key + ".png");
                     g.DrawImage(png, new Point(x * 32, y * 64));
                 }
 
-                g.DrawString(value.ToString(), font, Brushes.Black, new Point(x * 32, y * 64 + 32));
+                int level = card[key];
+                all += level;
+                cost += CardCost[level];
+                g.DrawString(card[key].ToString(), font, Brushes.Black, new Point(x * 32, y * 64 + 32));
                 i++;
             }
+            
+            g.FillRectangle(Brushes.Bisque, 0,32,bitmap.Width,32);
+            g.DrawString(player.ToString(), font, Brushes.Black, 10, 10);
+            g.DrawString(all.ToString(), sFont, Brushes.Brown, 10, 40);
+            g.DrawString(cost.ToString("N0"), sFont, Brushes.Indigo, 100, 40);
+            
             bitmap.Save(path);
         }
 
@@ -199,7 +287,7 @@ namespace testrobot
             sb.Append("name").Append(",");
             for (var i = 0; i < c.Count; i++)
             {
-                sb.Append(c[i]);
+                sb.Append(CardName[c[i]]).Append('-').Append(c[i]);
                 if (i != c.Count - 1)
                     sb.Append(",");
             }
@@ -274,6 +362,34 @@ namespace testrobot
             }
             bitmap.Save(path);
         }
+
+        public static void DrawCardName(string path, string imgPath)
+        {
+            int rowCount = 10;
+            int row = (CardName.Count - 1) / rowCount+1;
+            Bitmap bitmap = new Bitmap(64*rowCount, row * 96);
+            Graphics g=Graphics.FromImage(bitmap);
+            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
+            int i = 0;
+            foreach (var k in CardName)
+            {
+                int x = i % rowCount;
+                int y = i / rowCount;
+                var id = k.Key;
+                var name = k.Value;
+                if (File.Exists(imgPath + id + ".png"))
+                {
+                    var png = Image.FromFile(imgPath + id + ".png");
+                    g.DrawImage(png, new Point(x * 64, y * 96));
+                }
+
+                g.DrawString(name, font, Brushes.Black, x * 64 + 5, y * 96 + 70);
+                i++;
+            }
+            bitmap.Save(path);
+            
+        }
         
         public static void DrawAtkInfo(Dictionary<string, List<AttackShareInfo>> info, string path, string imgPath)
         {
@@ -290,7 +406,12 @@ namespace testrobot
             g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
 
             List<string> keys = new List<string>(info.Keys);
-            keys.Sort((x,y)=>info[y][0].Data.RaidLevel-info[x][0].Data.RaidLevel);
+            keys.Sort((x,y)=>
+            {
+                var yy = info[y].Count > 0 ? info[y][0].Data.RaidLevel : 0;
+                var xx = info[x].Count > 0 ? info[x][0].Data.RaidLevel : 0;
+                return yy - xx;
+            });
             
             int i = 0;
             foreach (var k in keys)
@@ -305,7 +426,7 @@ namespace testrobot
                 int c = 0;
                 foreach (var attack in data)
                 {
-                    g.DrawString(attack.Time.ToString("HH:mm:ss"), font, Brushes.Black, 280+c*(32*3+50), i * 96 + 10);
+                    g.DrawString((attack.Time+new TimeSpan(8,0,0)).ToString("HH:mm:ss"), font, Brushes.Black, 280+c*(32*3+50), i * 96 + 10);
                     int d = 0;
                     foreach (var (card, value) in attack.Data.Card)
                     {
@@ -326,6 +447,28 @@ namespace testrobot
             bitmap.Save(path);
         }
         
+        public static void DrawInfo(Dictionary<string, string> dic, string path,int len=100)
+        {
+            
+            Bitmap bitmap = new Bitmap(280 + len, 20+dic.Count*32);
+            Graphics g=Graphics.FromImage(bitmap);
+            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
+            int i = 0;
+            foreach (var (key, value) in dic)
+            {
+                if (i % 2 == 0)
+                {
+                    g.FillRectangle(Brushes.Cornsilk, 0,i * 32,bitmap.Width,32);
+                }
+
+                g.DrawString(key, font, Brushes.Black, 10, i * 32 + 3);
+                g.DrawString(value, font, Brushes.Brown, 290, i * 32 + 3);
+
+                i++;
+            }
+            bitmap.Save(path);
+        }
     }
     
 

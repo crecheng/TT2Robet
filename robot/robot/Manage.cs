@@ -78,7 +78,7 @@ public static class Manage
             Log.Warning("test", $"self group msg {eventArgs.Message.MessageId}[{eventArgs.IsSelfMessage}]");
             return ValueTask.CompletedTask;
         };
-        
+         
         sora = service;
         await service.StartService()
             .RunCatch(e => Log.Error("Sora Service", Log.ErrorLogBuilder(e)));
