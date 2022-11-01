@@ -27,6 +27,7 @@ public static class Tool
     }
 
     public static string AppPath;
+    public static string DataPath;
     public static readonly Random Random = new Random();
 
     /// <summary>

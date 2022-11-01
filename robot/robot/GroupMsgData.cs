@@ -10,7 +10,7 @@ public class GroupMsgData
     public GroupMsgData(long sender, bool isAdmin,bool isGroupAdmin, string text, object obj)
     {
         Sender = sender;
-        IsGroupAdmin = isAdmin;
+        IsGroupAdmin = isGroupAdmin;
         IsAdmin = isAdmin;
         Text = text;
         this.obj = obj;

@@ -58,6 +58,11 @@ public class RobotModelBase
         await Manage.UploadFile(Group, GetModelDir() + file, name);
     }
 
+    public async Task<string> DownloadGroupFile(string file)
+    {
+        return await Manage.DownLoadGroupFile(Group, file);
+    }
+
     public T Load<T>(string path)
     {
         var file = $"{Config.DataPath}\\{Group}\\{ModelName}\\{path}";

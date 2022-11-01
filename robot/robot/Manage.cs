@@ -1,6 +1,7 @@
 ﻿using Sora;
 using Sora.Entities;
 using Sora.Entities.Base;
+using Sora.Entities.Info;
 using Sora.EventArgs.SoraEvent;
 using Sora.Interfaces;
 using Sora.Net.Config;
@@ -51,6 +52,35 @@ public static class Manage
         await SendGroupMsg(group, body.GetSendMsg());
     }
 
+    public async static Task<string> DownLoadGroupFile(long group, string file)
+    {
+        var files= await Api.GetGroupRootFiles(group);
+        GroupFileInfo f=default;
+        int i = -1;
+        foreach (var fileInfo in files.groupFiles)
+        {
+            if (fileInfo.Name==file)
+            {
+                i = 1;
+                f = fileInfo;
+            }
+        }
+
+        if (i == -1)
+            return "-1";
+        try
+        {
+            var url= await Api.GetGroupFileUrl(group, f.Id, f.BusId);
+            var path= await Api.DownloadFile(url.fileUrl, 4);
+            return path.filePath;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return "-2";
+        }
+    }
+
     static async void CommandExceptionHandle(Exception exception, BaseMessageEventArgs eventArgs, string log)
     {
         string msg = $"bug了！！！\r\n{log}\r\n{exception.Message}";
@@ -84,6 +114,8 @@ public static class Manage
             .RunCatch(e => Log.Error("Sora Service", Log.ErrorLogBuilder(e)));
         await Task.Delay(1000);
         var list = await Api.GetGroupList();
-        list.groupList.ForEach(id=>_groupRobots.Add(id.GroupId,new GroupSoraRobot(id.GroupId)));
+        list.groupList.ForEach(id=>
+            _groupRobots.Add(id.GroupId,new GroupSoraRobot(id.GroupId))
+            );
     }
 }

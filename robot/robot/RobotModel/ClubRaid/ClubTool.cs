@@ -5,6 +5,8 @@ using System.Drawing;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+// ReSharper disable All
+#pragma warning disable CS8600
 
 namespace testrobot
 {
@@ -28,6 +30,8 @@ namespace testrobot
             286620, 299220, 312120, 325320, 338820,
             352620, 366720, 381120, 395820, 410820,
         };
+
+        private static Dictionary<string, Image> _imageCache = new Dictionary<string, Image>();
 
         public static Dictionary<string, string> CardName = new Dictionary<string, string>()
         {
@@ -65,6 +69,26 @@ namespace testrobot
             {"SpinalTap","骨骼"},
             {"RuinousRust","紫雨"},
         };
+
+        public static Image GetImage(string path, bool useCache = true)
+        {
+            if(useCache)
+            {
+                if (_imageCache.TryGetValue(path, out Image image))
+                {
+                    return image;
+                }
+            }
+
+            if (!File.Exists(path))
+                return null;
+            var img = Image.FromFile(path);
+            if (_imageCache.ContainsKey(path))
+                _imageCache[path] = img;
+            else
+                _imageCache.Add(path,img);
+            return img;
+        }
 
         private static Dictionary<string, string> _cardNName;
 
@@ -172,14 +196,21 @@ namespace testrobot
             return DateTime.TryParseExact(s,"yyyy-MM-dd HH:mm:ss",null,DateTimeStyles.None, out DateTime time) ? time : default;
         }
         
-        public static void DrawPlayerRaidDmg(ClubData club, string path)
+        public static void DrawPlayerRaidDmg(
+            ClubData club,
+            string path,
+            int count,
+            Dictionary<string,List<string>> showCard=null,
+            int showCardCount=0,
+            string imgPath="")
         {
             var Players = club.clan_raid.leaderboard;
-            int MaxCount = 30;
-            int height = 25;
+            int MaxCount = count;
+            int height = 32;
             int width = 400;
             Rectangle rect=new Rectangle(width/2,20,width,height);
-            Bitmap bitmap = new Bitmap(width+20*2, 20*2+Players.Count*(height+5));
+            Bitmap bitmap = new Bitmap(width + 20 * 2 + showCardCount * 32+20,
+                40 * 2 + Players.Count * (height + 5));
             Graphics g=Graphics.FromImage(bitmap);
             Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
             g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
@@ -188,6 +219,13 @@ namespace testrobot
             Brush brush1 = new SolidBrush(Color.Aqua);
             Brush greenBrush = new SolidBrush(Color.Green);
             Brush whiteBrush = new SolidBrush(Color.White);
+            double allDmg = 0;
+            int allAttack = 0;
+            Players.ForEach((i)=>
+            {
+                allDmg += i.score;
+                allAttack += i.num_attacks;
+            });
             Players.Sort((x,y)=>
             {
                 if (y.num_attacks != x.num_attacks)
@@ -202,11 +240,15 @@ namespace testrobot
             });
             
             double needAverage = club.titan_lords.GetNeedAllDmg()/Players.Count/MaxCount;
+            double currentAverage = allDmg / allAttack;
+            g.DrawString(allDmg.ShowNum(),font,greenBrush,30,10);
+            g.DrawString($"{currentAverage.ShowNum()} / {needAverage.ShowNum()}", font,
+                currentAverage > needAverage ? Brushes.Indigo : Brushes.Red, 30, 30);
+            g.DrawString(MaxCount.ToString(), font, Brushes.HotPink, 380, 10);
 
-
-            for (int i = 0; i < Players.Count; i++)
+            for (int i = 1; i <= Players.Count; i++)
             {
-                var p = Players[i];
+                var p = Players[i-1];
                 var y = rect.Y + i * (height + 5);
                 double average = p.score/p.num_attacks;
                 double dec = average - needAverage;
@@ -228,20 +270,46 @@ namespace testrobot
                 g.DrawString(Regex.Unescape(p.name),font,greenBrush,30,y+2);
                 g.DrawString(dec.ShowNum(),font,greenBrush,280,y+2);
                 g.DrawString(p.num_attacks.ToString(),font,Brushes.HotPink, 380,y+2);
+
+                if (showCard != null)
+                {
+                    if (showCard.ContainsKey(p.player_code))
+                    {
+                        var cards = showCard[p.player_code];
+                        cards.Sort();
+                        int c = 0;
+                        foreach (var card in cards)
+                        {
+                            var png = GetImage(imgPath + card + ".png");
+                            if (png!=null)
+                            {
+                                g.DrawImage(png, new Point(width + 20 * 2+c*32, y));
+                            }
+
+                            c++;
+                        }
+                    }
+                }
             }
             bitmap.Save(path);
         }
 
-        public static void DrawPlayerCard(string player, Dictionary<string,int> card, string path,string imgPath)
+        public static void DrawPlayerCard(string player, Dictionary<string,int> card,Dictionary<string,string> dic, string path,string imgPath)
         {
             int rowCount = 10;
             int len = (card.Count-1) / rowCount+1;
-            Bitmap bitmap = new Bitmap(32 * rowCount, (len + 1) * 64);
+            int cardStartY = 0;
+            if (dic != null)
+                cardStartY = (dic.Count + 1) * 32-50;
+            Bitmap bitmap = new Bitmap(32 * rowCount, cardStartY+(len + 1) * 64);
             Graphics g=Graphics.FromImage(bitmap);
             Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
             Font sFont = new Font(FontFamily.GenericMonospace, 12f,FontStyle.Bold);
+            
             g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
-            int i = rowCount;
+            int i = 0;
+            
+            i = rowCount;
             List<string> name = new List<string>(card.Keys);
             name.Sort((x, y) => card[y] - card[x]);
             int all = 0;
@@ -250,23 +318,50 @@ namespace testrobot
             {
                 int x = i % rowCount;
                 int y = i / rowCount;
-                if (File.Exists(imgPath + key + ".png"))
-                {
-                    var png = Image.FromFile(imgPath + key + ".png");
-                    g.DrawImage(png, new Point(x * 32, y * 64));
-                }
+
+                var png = GetImage(imgPath + key + ".png");
+                if (png != null)
+                    g.DrawImage(png, new Point(x * 32, cardStartY+y * 64));
 
                 int level = card[key];
                 all += level;
                 cost += CardCost[level];
-                g.DrawString(card[key].ToString(), font, Brushes.Black, new Point(x * 32, y * 64 + 32));
+                g.DrawString(card[key].ToString(), font, Brushes.Black, new Point(x * 32, cardStartY+y * 64 + 32));
                 i++;
             }
-            
-            g.FillRectangle(Brushes.Bisque, 0,32,bitmap.Width,32);
-            g.DrawString(player.ToString(), font, Brushes.Black, 10, 10);
-            g.DrawString(all.ToString(), sFont, Brushes.Brown, 10, 40);
-            g.DrawString(cost.ToString("N0"), sFont, Brushes.Indigo, 100, 40);
+
+            if (dic != null)
+            {
+                //dic.Add("统计总卡等",all.ToString());
+                dic.Add("统计灰尘消耗",cost.ToString());
+            }
+            else
+            {
+                g.FillRectangle(Brushes.Bisque, 0,cardStartY+32,bitmap.Width,32);
+                g.DrawString(player.ToString(), font, Brushes.Black, 10, cardStartY+10);
+                g.DrawString(all.ToString(), sFont, Brushes.Brown, 10, cardStartY+40);
+                g.DrawString(cost.ToString("N0"), sFont, Brushes.Indigo, 100, cardStartY+40);
+            }
+
+            i = 0;
+            if (dic != null)
+            {
+                foreach (var (key, value) in dic)
+                {
+                    if (i % 2 == 0)
+                    {
+                        g.FillRectangle(Brushes.Cornsilk, 0, i * 32, bitmap.Width, 32);
+                    }
+
+                    g.DrawString(key, font, Brushes.Black, 10, i * 32 + 3);
+                    g.DrawString(value, font, Brushes.Brown, 150, i * 32 + 3);
+
+                    i++;
+                }
+            }
+
+
+
             
             bitmap.Save(path);
         }
@@ -310,7 +405,9 @@ namespace testrobot
 
             return sb.ToString();
         }
-        public static void DrawAllPlayerCard(Dictionary<string, Dictionary<string, int>> cards, string path, string imgPath)
+
+        public static void DrawAllCardUse(Dictionary<string, Dictionary<string, int>> cards, string path,
+            string imgPath)
         {
             int max = 0;
             List<string> player = new List<string>();
@@ -327,20 +424,22 @@ namespace testrobot
                     cardName.Add(item);
                     c += level;
                 }
-                num.Add(key,c);
+
+                num.Add(key, c);
             }
 
             player.Sort((x, y) => num[y] - num[x]);
-            Bitmap bitmap = new Bitmap(280 + 32 * cardName.Count+50, cards.Count * 64);
-            Graphics g=Graphics.FromImage(bitmap);
-            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
-            g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
+            Bitmap bitmap = new Bitmap(280 + 32 * cardName.Count + 50, cards.Count * 64);
+            Graphics g = Graphics.FromImage(bitmap);
+            Font font = new Font(FontFamily.GenericMonospace, 15f, FontStyle.Bold);
+            g.FillRectangle(Brushes.White, 0, 0, bitmap.Width, bitmap.Height);
             for (var i = 0; i < player.Count; i++)
             {
                 if (i % 2 == 0)
                 {
-                    g.FillRectangle(Brushes.Cornsilk, 0,i * 64,bitmap.Width,64);
+                    g.FillRectangle(Brushes.Cornsilk, 0, i * 64, bitmap.Width, 64);
                 }
+
                 var name = player[i];
                 g.DrawString(Regex.Unescape(name), font, Brushes.Black, 30, i * 64 + 10);
                 int c = 0;
@@ -348,18 +447,75 @@ namespace testrobot
                 {
                     if (cards[name].ContainsKey(card))
                     {
-                        if (File.Exists(imgPath + card + ".png"))
-                        {
-                            var png = Image.FromFile(imgPath + card + ".png");
-                            g.DrawImage(png, new Point(280+c * 32, i * 64));
-                        }
+                        var png = GetImage(imgPath + card + ".png");
+                        if (png != null)
+                            g.DrawImage(png, new Point(280 + c * 32, i * 64));
 
                         g.DrawString(cards[name][card].ToString(), font, Brushes.Black,
                             new Point(280 + c * 32, i * 64 + 32));
                     }
+
                     c++;
                 }
             }
+
+            bitmap.Save(path);
+        }
+
+        public static void DrawAllPlayerCard(Dictionary<string, Dictionary<string, int>> cards, string path,
+            string imgPath)
+        {
+            int max = 0;
+            List<string> player = new List<string>();
+            Dictionary<string, int> num = new Dictionary<string, int>();
+            HashSet<string> cardName = new HashSet<string>();
+            foreach (var (key, value) in cards)
+            {
+                player.Add(key);
+                if (value.Count > max)
+                    max = value.Count;
+                int c = 0;
+                foreach (var (item, level) in value)
+                {
+                    cardName.Add(item);
+                    c += level;
+                }
+
+                num.Add(key, c);
+            }
+
+            player.Sort((x, y) => num[y] - num[x]);
+            Bitmap bitmap = new Bitmap(280 + 32 * cardName.Count + 50, cards.Count * 64);
+            Graphics g = Graphics.FromImage(bitmap);
+            Font font = new Font(FontFamily.GenericMonospace, 15f, FontStyle.Bold);
+            g.FillRectangle(Brushes.White, 0, 0, bitmap.Width, bitmap.Height);
+            for (var i = 0; i < player.Count; i++)
+            {
+                if (i % 2 == 0)
+                {
+                    g.FillRectangle(Brushes.Cornsilk, 0, i * 64, bitmap.Width, 64);
+                }
+
+                var name = player[i];
+                g.DrawString(Regex.Unescape(name), font, Brushes.Black, 30, i * 64 + 10);
+                int c = 0;
+                foreach (var card in cardName)
+                {
+                    if (cards[name].ContainsKey(card))
+                    {
+
+                        var png = GetImage(imgPath + card + ".png");
+                        if (png != null)
+                            g.DrawImage(png, new Point(280 + c * 32, i * 64));
+
+                        g.DrawString(cards[name][card].ToString(), font, Brushes.Black,
+                            new Point(280 + c * 32, i * 64 + 32));
+                    }
+
+                    c++;
+                }
+            }
+
             bitmap.Save(path);
         }
 
@@ -378,15 +534,16 @@ namespace testrobot
                 int y = i / rowCount;
                 var id = k.Key;
                 var name = k.Value;
-                if (File.Exists(imgPath + id + ".png"))
-                {
-                    var png = Image.FromFile(imgPath + id + ".png");
+
+                var png = GetImage(imgPath + id + ".png");
+                if (png != null)
                     g.DrawImage(png, new Point(x * 64, y * 96));
-                }
+
 
                 g.DrawString(name, font, Brushes.Black, x * 64 + 5, y * 96 + 70);
                 i++;
             }
+
             bitmap.Save(path);
             
         }
@@ -430,14 +587,13 @@ namespace testrobot
                     int d = 0;
                     foreach (var (card, value) in attack.Data.Card)
                     {
-                        if (File.Exists(imgPath + card + ".png"))
-                        {
-                            var png = Image.FromFile(imgPath + card + ".png");
-                            g.DrawImage(png, new Point(280 + c * (32*3+50) + d * 32, i * 96 + 32));
-                        }
 
+                        var png = GetImage(imgPath + card + ".png");
+                        if (png != null)
+                            g.DrawImage(png, new Point(280 + c * (32 * 3 + 50) + d * 32, i * 96 + 32));
                         d++;
                     }
+
                     g.DrawString(attack.Data.Dmg.ShowNum(), font, Brushes.Black, 280+c*(32*3+50), i * 96 + 70);
                     c++;
                 }
@@ -467,6 +623,117 @@ namespace testrobot
 
                 i++;
             }
+            bitmap.Save(path);
+        }
+        
+        public static void DrawInfo(List<string> list, string path,int len=250)
+        {
+            Bitmap bitmap = new Bitmap(len, 20+list.Count*32);
+            Graphics g=Graphics.FromImage(bitmap);
+            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
+            int i = 0;
+            foreach (var key in list)
+            {
+                if (i % 2 == 0)
+                {
+                    g.FillRectangle(Brushes.Cornsilk, 0,i * 32,bitmap.Width,32);
+                }
+                g.DrawString(key, font, Brushes.Black, 10, i * 32 + 3);
+                i++;
+            }
+            bitmap.Save(path);
+        }
+
+        public static Bitmap DrawTitanHPChangeInfoOne(Dictionary<TitanData.PartName,double> dmg,
+            Dictionary<string,int> atkCount,
+            Dictionary<string,List<AttackShareInfo>> atkInfo,
+            DateTime start,DateTime end, string imgPath)
+        {
+            int max = 0;
+            foreach (var (key, value) in atkInfo)
+            {
+                if (value.Count > max)
+                    max = value.Count;
+            }
+
+            var maxRow = Math.Max(dmg.Count, atkCount.Count);
+            
+            Bitmap bitmap = new Bitmap(Math.Max(280 + (32 *3+50)* max+50,400+300), 40+(maxRow+1)*32+atkInfo.Count*96);
+            Graphics g=Graphics.FromImage(bitmap);
+            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
+
+            g.DrawString($"{start:HH:mm:ss}-{end:HH:mm:ss}", font, Brushes.Black, 10, 10);
+            int i = 1;
+            foreach (var (key, value) in dmg)
+            {
+                if (i % 2 == 0)
+                {
+                    g.FillRectangle(Brushes.Cornsilk, 0,i * 32,bitmap.Width,32);
+                }
+
+                g.DrawString(TitanData.PartNameShow(key), font, Brushes.Black, 10, i * 32 + 3);
+                g.DrawString(value.ShowNum(), font, Brushes.Brown, 150, i * 32 + 3);
+                i++;
+            }
+
+            i = 0;
+            foreach (var (key, value) in atkCount)
+            {
+                g.DrawString(key, font, Brushes.Black, 300, 32+i * 32 + 3);
+                g.DrawString(value.ToString(), font, Brushes.Brown, 580, 32+i * 32 + 3);
+                i++;
+            }
+            
+
+            int cardStartY = 20 + (maxRow+1) * 32;
+            
+            i = 0;
+            foreach (var k in atkInfo)
+            {
+                var data = k.Value;
+                var name = k.Key;
+                if (i % 2 == 0)
+                {
+                    g.FillRectangle(Brushes.Cornsilk, 0,cardStartY+i * 96,bitmap.Width,96);
+                }
+                g.DrawString(Regex.Unescape(name), font, Brushes.Black, 30, cardStartY+i * 96 + 32);
+                int c = 0;
+                foreach (var attack in data)
+                {
+                    g.DrawString((attack.Time + new TimeSpan(8, 0, 0)).ToString("HH:mm:ss"), font, Brushes.Black,
+                        280 + c * (32 * 3 + 50), cardStartY + i * 96 + 10);
+                    int d = 0;
+                    foreach (var (card, value) in attack.Data.Card)
+                    {
+
+                        var png = GetImage(imgPath + card + ".png");
+                        if (png != null)
+                            g.DrawImage(png, new Point(280 + c * (32 * 3 + 50) + d * 32, cardStartY+i * 96 + 32));
+                        d++;
+                    }
+
+                    g.DrawString(attack.Data.Dmg.ShowNum(), font, Brushes.Black, 280 + c * (32 * 3 + 50),
+                        cardStartY + i * 96 + 70);
+                    c++;
+                }
+
+                i++;
+            }
+
+            return bitmap;
+        }
+        
+
+        public static void DrawTitanHPChangeInfo(
+            Dictionary<TitanData.PartName,double> dmg,
+            Dictionary<string,int> atkCount,
+            Dictionary<string,List<AttackShareInfo>> atkInfo,
+            DateTime start,DateTime end,
+            string path,string imgPath)
+        {
+            var bitmap= DrawTitanHPChangeInfoOne(dmg, atkCount, atkInfo, start, end, imgPath);
             bitmap.Save(path);
         }
     }

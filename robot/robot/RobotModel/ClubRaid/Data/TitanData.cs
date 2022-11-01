@@ -13,8 +13,11 @@ namespace testrobot
         public double total_hp;
         public List<object> enchant_bonuses;
         public string enemy_id;
+        public string enemy_name;
         public List<Part> parts;
         public RaidAttackTarget Target;
+        public List<RDebuff> area_debuffs;
+        public List<RDebuff> cursed_debuffs;
         
 
         public class Part
@@ -23,7 +26,7 @@ namespace testrobot
             public bool enchanted;
             public PartName part_id;
             public double total_hp;
-            
+            public bool cursed;
             
             /// <summary>
             /// 获得当前部位的百分比
@@ -52,7 +55,30 @@ namespace testrobot
                        $" 总血量: {total_hp}";
             }
         }
-        
+
+        public (int blue,int bone)GetBodyInfo()
+        {
+            int body = 0;
+            int armor = 0;
+            int all = 0;
+            foreach (var part in parts)
+            {
+                all++;
+                if (part.current_hp > 0)
+                {
+                    if ((int) part.part_id %2!=0)
+                        armor++;
+                    else
+                        body++;
+                    
+                }
+            }
+
+            var blue = body - armor;
+            var bone =body- all / 2 ;
+            return (blue,bone);
+        }
+
         public void DrawTitan(string name)
         {
             List<Rectangle> rects = new List<Rectangle>()
@@ -80,11 +106,14 @@ namespace testrobot
             
             Pen pen = new Pen(Color.Aqua);
             g.DrawRectangles(pen,rects.ToArray());
-
+                
+            double debuffDmg = 0f;
             #region 绘制肉
             Brush brush1 = new SolidBrush(Color.Aqua);
             parts.ForEach((i) =>
             {
+                if (i.enchanted)
+                    debuffDmg += i.current_hp;
                 if(((int) i.part_id) %2!=0)
                     return;
                 int index = ((int) i.part_id) / 2;
@@ -105,7 +134,7 @@ namespace testrobot
             pen.Color=Color.White;
             g.DrawRectangles(pen,rects.ToArray());
             bool[] bools = new bool[parts.Count/2];
-           
+            
             parts.ForEach((i) =>
             {
                 int tmp=(int) i.part_id;
@@ -114,7 +143,7 @@ namespace testrobot
                 bools[tmp / 2] = i.HaveArmor();
                 int index = ((int) i.part_id) / 2;
                 var r = rects[index];
-                g.FillRectangle(whiteBrush,r.X,r.Y,r.Width,r.Height*i.GetPercentage());
+                g.FillRectangle(i.enchanted? Brushes.HotPink:whiteBrush,r.X,r.Y,r.Width,r.Height*i.GetPercentage());
             });
             #endregion
 
@@ -124,7 +153,10 @@ namespace testrobot
             Brush grayBrush1=new SolidBrush(Color.FromArgb(130, 130, 156));
             g.DrawRectangle(pen,20,10,490,25);
             g.FillRectangle(grayBrush,20,10,490*ArmorPercentage(out double haveArmor,out double allArmor),25);
+            if(debuffDmg>0)
+                g.FillRectangle(Brushes.HotPink,20,10,490*ArmorDeBuffPercentage(),25);
             g.DrawString(haveArmor.ShowNum(),font,grayBrush1,25,12);
+
             #endregion
             
             Brush brush3 = new SolidBrush(Color.Green);
@@ -166,7 +198,8 @@ namespace testrobot
             BodyHandRight,
             ArmorHandRight,
             BodyHandLeft,
-            ArmorHandLeft
+            ArmorHandLeft,
+            Last
             
         }
 
@@ -190,6 +223,22 @@ namespace testrobot
                 AllArmor += t.total_hp;
             }
             return (float)(HaveArmor / AllArmor);
+        }
+
+        public float ArmorDeBuffPercentage()
+        {
+            double HaveDeBuff = 0;
+            double AllArmor = 0;
+            foreach (var t in parts)
+            {
+                int tmp=(int) t.part_id;
+                if(tmp %2==0)
+                    continue;
+                if(t.enchanted)
+                    HaveDeBuff += t.current_hp;
+                AllArmor += t.total_hp;
+            }
+            return (float)(HaveDeBuff / AllArmor);
         }
 
         public static string EnemyIdName(string id)
@@ -224,20 +273,36 @@ namespace testrobot
                    case PartName.ArmorHead:return "头部盔甲";
                    case PartName.BodyChestUpper:return "胸蓝条";
                    case PartName.ArmorChestUpper:return "胸盔甲";
-                   case PartName.BodyArmUpperRight:return "右肩蓝条";
-                   case PartName.ArmorArmUpperRight:return "右肩盔甲";
-                   case PartName.BodyArmUpperLeft:return "左肩蓝条";
-                   case PartName.ArmorArmUpperLeft:return "左肩盔甲";
-                   case PartName.BodyLegUpperRight:return "右腿蓝条";
-                   case PartName.ArmorLegUpperRight:return "右腿盔甲";
-                   case PartName.BodyLegUpperLeft:return "左腿蓝条";
-                   case PartName.ArmorLegUpperLeft:return "左腿盔甲";
-                   case PartName.BodyHandRight:return "右手蓝条";
-                   case PartName.ArmorHandRight:return "右手盔甲";
-                   case PartName.BodyHandLeft:return "左手蓝条";
-                   case PartName.ArmorHandLeft:return "左手盔甲";
+                   case PartName.BodyArmUpperRight:return "左肩蓝条";
+                   case PartName.ArmorArmUpperRight:return "左肩盔甲";
+                   case PartName.BodyArmUpperLeft:return "右肩蓝条";
+                   case PartName.ArmorArmUpperLeft:return "右肩盔甲";
+                   case PartName.BodyLegUpperRight:return "左腿蓝条";
+                   case PartName.ArmorLegUpperRight:return "左腿盔甲";
+                   case PartName.BodyLegUpperLeft:return "右腿蓝条";
+                   case PartName.ArmorLegUpperLeft:return "右腿盔甲";
+                   case PartName.BodyHandRight:return "左手蓝条";
+                   case PartName.ArmorHandRight:return "左手盔甲";
+                   case PartName.BodyHandLeft:return "右手蓝条";
+                   case PartName.ArmorHandLeft:return "右手盔甲";
+                   case PartName.Last:return "上一个";
             }
             return partName.ToString();
+        }
+        public static string PartNameShowNo(PartName partName)
+        {
+            switch (partName)
+            {
+                case PartName.ArmorHead:return "头";
+                case PartName.ArmorChestUpper:return "胸";
+                case PartName.ArmorArmUpperRight:return "左肩";
+                case PartName.ArmorArmUpperLeft:return "右肩";
+                case PartName.ArmorLegUpperRight:return "左腿";
+                case PartName.ArmorLegUpperLeft:return "右腿";
+                case PartName.ArmorHandRight:return "左手";
+                case PartName.ArmorHandLeft:return "右手";
+            }
+            return "";
         }
 
         public override string ToString()

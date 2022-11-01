@@ -9,6 +9,7 @@ public static class RobotModelFactory
         {"突袭", typeof(RaidRobotModel)},
         {"简单回复",typeof(EasyReplyModel)},
         {"嘤嘤嘤",typeof(RandomImgModel)},
+        {"tt2数据",typeof(TT2DataRobotModel)},
     };
     public static RobotModelBase GetModel(string name,GroupRobot group)
     {

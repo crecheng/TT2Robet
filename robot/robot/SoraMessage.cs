@@ -27,6 +27,13 @@ namespace robot
 		{
 			Type = -1
 		};
+
+		public void Add(SoraSegment segment)
+		{
+			if (Body == null)
+				Body = GetSendMsg();
+			Body.Add(segment);
+		}
 		
 		public SoraMessage(string text)
 		{
