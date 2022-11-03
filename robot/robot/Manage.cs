@@ -42,6 +42,11 @@ public static class Manage
         await Api.SendGroupMessage(group, body);
     }
 
+    public async static Task OutException(string s)
+    {
+        await SendGroupMsg(_adminGroup,new SoraMessage(s).GetSendMsg());
+    }
+
     public async static Task UploadFile(long group, string file,string upName)
     {
         await Api.UploadGroupFile(group, $"{AppDomain.CurrentDomain.BaseDirectory}{file}" , upName);

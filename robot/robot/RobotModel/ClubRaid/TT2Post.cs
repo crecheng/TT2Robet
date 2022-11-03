@@ -49,7 +49,7 @@ namespace testrobot
 
         public MsgDataList GetForum(string tmpFile)
         {
-            string s = Post(TT2Fun.Forum, new string[] {Tt2Post.forum.ToString()});
+            string s = Post(TT2Fun.Forum);
             if (s.Length < 200)
                 OutError("GetForum");
             File.WriteAllText(tmpFile,s);
@@ -127,7 +127,7 @@ namespace testrobot
 
         public void OutError(string s)
         {
-            Console.WriteLine(s + "error\n" + Tt2Post.playerid);
+            Console.WriteLine(s + "error");
         }
 
         public string InlinePost(string url, Dictionary<string, string> dic, string json)
@@ -187,15 +187,11 @@ namespace testrobot
 
     public partial class TT2PostConfig
     {
-        public string playerid ;
         public string SessionId ;
         public string token  ;
         public string vendor ;
-        public string ad ;
         public int stage ;
-        public int forum ;
         public Dictionary<TT2Post.TT2Fun, TT2Post.SendInfo> key;
-        public string name;
         public string Version = "5.22.0";
 
 
@@ -203,23 +199,21 @@ namespace testrobot
         {
             Dictionary<string, object> dictionary = new Dictionary<string, object>()
             {
-                {"playerid",playerid},
                 {"SessionId",SessionId},
                 {"token",token},
                 {"vendor",vendor},
-                {"ad",ad},
             };
 
             return JsonConvert.SerializeObject(dictionary);
         }
         public bool CanUse()
         {
-            bool can = !(string.IsNullOrEmpty(playerid) || playerid.Length < 10);
-            if (string.IsNullOrEmpty(SessionId) || SessionId.Length < 10)
-                can = false;
+            bool can = !(string.IsNullOrEmpty(SessionId) || SessionId.Length < 10);
             if (string.IsNullOrEmpty(token) || token.Length < 10)
                 can = false;
             if (string.IsNullOrEmpty(vendor) || vendor.Length < 10)
+                can = false;
+            if (key == null)
                 can = false;
             return can;
         }

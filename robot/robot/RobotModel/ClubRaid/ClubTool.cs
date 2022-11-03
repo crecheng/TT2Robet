@@ -548,7 +548,7 @@ namespace testrobot
             
         }
         
-        public static void DrawAtkInfo(Dictionary<string, List<AttackShareInfo>> info, string path, string imgPath)
+        public static void DrawAtkInfo(Dictionary<string, List<AttackShareInfo>> info, string path, string imgPath,bool cardLevel=false)
         {
             int max = 0;
             foreach (var (key, value) in info)
@@ -556,8 +556,12 @@ namespace testrobot
                 if (value.Count > max)
                     max = value.Count;
             }
+
+            int rowH = 96;
+            if (cardLevel)
+                rowH += 32;
             
-            Bitmap bitmap = new Bitmap(280 + (32 *3+50)* max+50, info.Count * 96);
+            Bitmap bitmap = new Bitmap(280 + (32 *3+50)* max+50, info.Count * rowH);
             Graphics g=Graphics.FromImage(bitmap);
             Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
             g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
@@ -576,25 +580,28 @@ namespace testrobot
                 var data = info[k];
                 if (i % 2 == 0)
                 {
-                    g.FillRectangle(Brushes.Cornsilk, 0,i * 96,bitmap.Width,96);
+                    g.FillRectangle(Brushes.Cornsilk, 0,i * rowH,bitmap.Width,rowH);
                 }
                 var name = k;
-                g.DrawString(Regex.Unescape(name), font, Brushes.Black, 30, i * 96 + 32);
+                g.DrawString(Regex.Unescape(name), font, Brushes.Black, 30, i * rowH + 32);
                 int c = 0;
                 foreach (var attack in data)
                 {
-                    g.DrawString((attack.Time+new TimeSpan(8,0,0)).ToString("HH:mm:ss"), font, Brushes.Black, 280+c*(32*3+50), i * 96 + 10);
+                    g.DrawString((attack.Time+new TimeSpan(8,0,0)).ToString("HH:mm:ss"), font, Brushes.Black, 280+c*(32*3+50), i * rowH + 10);
                     int d = 0;
                     foreach (var (card, value) in attack.Data.Card)
                     {
 
                         var png = GetImage(imgPath + card + ".png");
                         if (png != null)
-                            g.DrawImage(png, new Point(280 + c * (32 * 3 + 50) + d * 32, i * 96 + 32));
+                            g.DrawImage(png, new Point(280 + c * (32 * 3 + 50) + d * 32, i * rowH + 32));
+                        if(cardLevel)
+                            g.DrawString(value.ToString(), font, Brushes.Green, 
+                                280 + c * (32 * 3 + 50) + d * 32, i * rowH + 64);
                         d++;
                     }
 
-                    g.DrawString(attack.Data.Dmg.ShowNum(), font, Brushes.Black, 280+c*(32*3+50), i * 96 + 70);
+                    g.DrawString(attack.Data.Dmg.ShowNum(), font, Brushes.Black, 280+c*(32*3+50), i * rowH + 70+(cardLevel?32:0));
                     c++;
                 }
 

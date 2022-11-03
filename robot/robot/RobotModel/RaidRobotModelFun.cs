@@ -24,10 +24,12 @@ public partial class RaidRobotModel
             if (t != null)
             {
                 _club = t;
+                _data.isRefresh = true;
                 return "刷新成功！";
             }
             else
             {
+                _data.isRefresh = false;
                 return "失败！";
 
             }
@@ -317,14 +319,24 @@ public partial class RaidRobotModel
     /// </summary>
     /// <param name="data"></param>
     /// <returns></returns>
-    private async Task<SoraMessage> UploadAtkInfo(GroupMsgData data)
+    private async Task<SoraMessage> UploadAtkInfo(GroupMsgData msgArgs)
     {
         if (_club == null)
             return "还没数据";
-        if (!(data.IsAdmin|| data.IsGroupAdmin))
+        if (!(msgArgs.IsAdmin|| msgArgs.IsGroupAdmin))
             return "你没权限！";
+        
+        var data= GetAtkInfo(DateTime.Now - new TimeSpan(7, 0, 0, 0), DateTime.Now, true);
+        Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
+        foreach (var info in data)
+        {
+            res.Add(_data.Player[info.Key].Name,info.Value);
+        }
+        var f = GetModelDir() + "AtkInfo.png";
+        ClubTool.DrawAtkInfo(res,f,Card32Path,true);
+        await UploadGroupFile("AtkInfo.png", $"AtkInfo_{DateTime.Now:MM_dd_HH_mm_ss}.png");
+        
         _data.AttackInfos.Sort((x,y)=>x.Id-y.Id);
-
         StringBuilder sb = new StringBuilder();
         sb.Append("名字,时间,卡1,等级,卡2,等级,卡3,等级,突袭等级,伤害");
         foreach (var info in _data.AttackInfos)
@@ -343,12 +355,13 @@ public partial class RaidRobotModel
             {
                 sb.Append($",0,");
             }
-
             sb.Append(info.Data.RaidLevel).Append(',');
             sb.Append(info.Data.Dmg);
         }
         Save("AtkInfo.csv",sb.ToString());
         await UploadGroupFile("AtkInfo.csv", $"AtkInfo_{DateTime.Now:MM_dd_HH_mm_ss}.csv");
+        
+        
         return SoraMessage.Null;
     }
 
@@ -630,6 +643,41 @@ public partial class RaidRobotModel
     {
         if (string.IsNullOrEmpty(time))
             return "请正确输入，如：查询血量变动1";
+        if (time == "全部")
+        {
+            if (_data.TitanDmgList.Count == 0)
+                return "还没有数据";
+            Dictionary<string, string> dic = new Dictionary<string, string>();
+            dic.Add("时间段","伤害\t\t次数\t序号");
+            int j = 0;
+            int max = 0;
+            for (var i = _data.TitanDmgList.Count - 1; i >= 0; i--)
+            {
+                var info = _data.TitanDmgList[i];
+                double dmg = 0;
+                string other=String.Empty;
+                
+                foreach (var (key, value) in info.dmg)
+                {
+                    other+=$"{TitanData.PartNameShow(key)}-{value.ShowNum()} ";
+                    dmg += value;
+                }
+
+                max = Math.Max(max, other.Length);
+
+                int count = 0;
+                foreach (var (key, value) in info.AttackCount)
+                {
+                    count += value;
+                }
+                
+                dic.Add($"{info.Start:HH:mm:ss}-{info.End:HH:mm:ss}",$"{dmg.ShowNum()}    \t{count}\t{++j}\t{other}");
+            }
+
+            var f = GetModelDir() + "LookLastHPChangeAll.png";
+            ClubTool.DrawInfo(dic,f,200+max*19);
+            return Tool.Image(f);
+        }
         if (int.TryParse(time, out int t))
         {
             if (t <= 0 || t > _data.TitanDmgList.Count)
@@ -678,24 +726,25 @@ public partial class RaidRobotModel
 
     private async Task<SoraMessage> ParseBuffInfoFile(GroupMsgData data, string file)
     {
-        if (!(data.IsAdmin|| data.IsGroupAdmin))
+        if (!(data.IsAdmin || data.IsGroupAdmin))
             return "你没权限！";
-        if(string.IsNullOrEmpty(file))
+        if (string.IsNullOrEmpty(file))
             return "请正确输入，如：解析buff文件1.json";
-        var s= await DownloadGroupFile(file);
+        var s = await DownloadGroupFile(file);
         switch (s)
         {
             case "-1":
-                return "群文件没有找到改文件"; break;
+                return "群文件没有找到该文件";
+                break;
             case "-2":
                 return "获取文件失败";
-            break;
+                break;
         }
 
         try
         {
             var text = File.ReadAllText(s);
-            var list= JsonConvert.DeserializeObject<List<TitanBuffInfo>>(text);
+            var list = JsonConvert.DeserializeObject<List<TitanBuffInfo>>(text);
             HashSet<string> area = new HashSet<string>();
             HashSet<string> boss = new HashSet<string>();
             StringBuilder sb = new StringBuilder();
@@ -713,13 +762,13 @@ public partial class RaidRobotModel
                         sb.Append($"{i.enemy_name}:{i.area_debuffs[0]} | ");
                     }
                 });
-                
+
                 sb.Append(',');
                 info.titans?.ForEach(i =>
                 {
                     if (i.cursed_debuffs != null)
                     {
-                        sb.Append($"{i.enemy_name}:");
+                        sb.Append(i.enemy_name).Append(':');
                         i.parts.ForEach(p =>
                         {
                             if (p.cursed)
@@ -728,21 +777,151 @@ public partial class RaidRobotModel
                         sb.Append($"({i.cursed_debuffs[0]}) | ");
                     }
                 });
-                
+
                 sb.Append(',');
                 sb.Append(info.spawn_sequence.Count);
-                
+
                 sb.Append(',');
-                info.spawn_sequence.ForEach(i=>sb.Append(i).Append('>'));
+                info.spawn_sequence.ForEach(i => sb.Append(i).Append('>'));
             }
-            Save("buff.csv",sb.ToString());
+
+            Save("buff.csv", sb.ToString());
             await UploadGroupFile("buff.csv", $"buff{DateTime.Now:yy_MM_dd_HH_mm_ss}.csv");
             return SoraMessage.Null;
-            
+
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
+            await OutException(e);
+            return "解析失败";
+        }
+    }
+    
+    private async Task<SoraMessage> ParseConfigInfoFile(GroupMsgData data, string curl)
+    {
+        if (!(data.IsAdmin || data.IsGroupAdmin))
+            return "你没权限！";
+        if (string.IsNullOrEmpty(curl))
+            return "请正确复制curl";
+        try
+        {
+            var text = curl.Split(' ');
+            if (text.Length <= 1)
+                return "数据不对，请输入正确的curl";
+            List<string> marge = new List<string>();
+            for (var i = 0; i < text.Length; i++)
+            {
+                var a = text[i];
+                if (a.StartsWith("-"))
+                {
+                    marge.Add(a);
+                    continue;
+                }else if (a.StartsWith("\""))
+                {
+                    if(a.EndsWith("\""))
+                        marge.Add(a);
+                    else
+                    {
+                        var next = String.Empty;
+                        while (!next.EndsWith("\""))
+                        {
+                            next = text[++i];
+                            a += " "+ next;
+                        }
+                        marge.Add(a);
+                    }
+                }else
+                    marge.Add(a);
+            }
+
+            text = marge.ToArray();
+            var url = text[^1];
+            var json = text[text.Length-2];
+            //解析content
+            Dictionary<string, string> content = new Dictionary<string, string>();
+            for (int i = 0; i < text.Length; i++)
+            {
+                var a = text[i];
+                if (a == "-H")
+                {
+                    var c = text[++i];
+                    if(c.StartsWith("\""))
+                        c = c.Substring(1, c.Length - 2);
+                    if (c.IndexOf(':') > 0)
+                    {
+                        var p = c.Split(':');
+                        content.Add(p[0].ToLower(),p[1]);
+                    }
+                }
+                else if(a=="-d")
+                {
+                    json = text[++i];
+                }
+            }
+
+            //解析url
+            if (url.StartsWith('\"'))
+                url = url.Substring(1, url.Length - 2);
+            var urlKey = "tt2.gamehivegames.com";
+            int keyIndex = url.IndexOf(urlKey);
+            if (keyIndex >= 0)
+            {
+                url = url.Substring(keyIndex + urlKey.Length);
+            }
+            var urlHead = url.Substring(0,url.IndexOf('?'));
+            var urlPram = url.Substring(url.IndexOf('?') + 1);
+            var urlArgs =new Dictionary<string, string>();
+            var urlPramArray = urlPram.Split('&');
+            foreach (var pram in urlPramArray)
+            {
+                var p = pram.Split('=');
+                
+                urlArgs.Add(p[0],p[1]);
+            }
+
+            if (json.StartsWith("\'") || json.StartsWith("\""))
+                json= json.Substring(1, json.Length - 2);
+            _config.Version = urlArgs["v"];
+            if (_config.key == null)
+                _config.key = new Dictionary<TT2Post.TT2Fun, TT2Post.SendInfo>();
+            switch (urlHead)
+            {
+                case "/raid/current":
+                {
+                    if (!_config.key.ContainsKey(TT2Post.TT2Fun.RaidCurrent))
+                        _config.key.Add(TT2Post.TT2Fun.RaidCurrent,
+                            new TT2Post.SendInfo("/raid/current", urlArgs["s"], json));
+                    var config= _config.key[TT2Post.TT2Fun.RaidCurrent];
+                    config.s = urlArgs["s"];
+                    config.json = json;
+                } break;
+                case "/clan/forum/board":
+                {
+                    if (!_config.key.ContainsKey(TT2Post.TT2Fun.Forum))
+                        _config.key.Add(TT2Post.TT2Fun.Forum,
+                            new TT2Post.SendInfo("/clan/forum/board", urlArgs["s"], json));
+                    var config= _config.key[TT2Post.TT2Fun.Forum];
+                    config.s = urlArgs["s"];
+                    config.json = json;
+                } break;
+                default:
+                    return "不支持的请求curl" + urlHead;
+            }
+
+            _config.SessionId = content["X-TT2-session-id".ToLower()];
+            _config.vendor = content["X-Tt2-Vendor-Id".ToLower()];
+            _config.token = content["Authorization".ToLower()].Split(' ')[1];
+            _config.stage = int.Parse(content["X-Tt2-Current-Stage".ToLower()]);
+            Save("config.json",_config.Save());
+            
+            return "更新成功"+urlHead+"\n你可以撤回了";
+
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            await OutException(e);
             return "解析失败";
         }
     }

@@ -73,6 +73,26 @@ public class RobotModelBase
         return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
 
     }
+    
+    public T LoadCanBeNull<T>(string path)
+    {
+        var file = $"{Config.DataPath}\\{Group}\\{ModelName}\\{path}";
+        if (!File.Exists(file))
+        {
+            return default;
+        }
+        return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
 
+    }
+
+    public async Task OutException(string s)
+    {
+        await Manage.OutException(s);
+    }
+    
+    public async Task OutException(Exception s)
+    {
+        await Manage.OutException(s.ToString());
+    }
 
 }

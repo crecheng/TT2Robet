@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Sora.Entities.Segment;
+using Sora.EventArgs.SoraEvent;
 using testrobot;
 // ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
 
@@ -35,22 +36,38 @@ public partial class RaidRobotModel : RobotModelBase
     private Dictionary<string, Func<GroupMsgData,string, Task<SoraMessage>>> _argLenFun;
     public override async Task<SoraMessage> GetMsg(GroupMsgData data)
     {
+        var oldText = data.Text;
+        if (data.obj is GroupMessageEventArgs soraArgs)
+        {
+            data.Text = soraArgs.Message.GetText();
+        }
+
         if (data.Text.StartsWith(_startString))
         {
-            var arg = data.Text.Substring(_startString.Length);
-            SetIsAutoRefresh(data, arg);
-            if (_argFun.ContainsKey(arg))
-                return await _argFun[arg].Invoke(data);
-            
-            foreach (var func in _argLenFun)
+            try
             {
-                if (arg.StartsWith(func.Key))
+                var arg = data.Text.Substring(_startString.Length);
+                SetIsAutoRefresh(data, arg);
+                if (_argFun.ContainsKey(arg))
+                    return await _argFun[arg].Invoke(data);
+
+                foreach (var func in _argLenFun)
                 {
-                    var arg1 = arg.Substring(func.Key.Length);
-                    return await func.Value.Invoke(data, arg1);
+                    if (arg.StartsWith(func.Key))
+                    {
+                        var arg1 = arg.Substring(func.Key.Length);
+                        return await func.Value.Invoke(data, arg1);
+                    }
                 }
             }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                await OutException(e);
+            }
         }
+
+        data.Text = oldText;
         return await base.GetMsg(data);
     }
 
@@ -116,11 +133,12 @@ public partial class RaidRobotModel : RobotModelBase
         return all;
     }
 
-    private void RefreshRaidDataSave()
+    private async Task RefreshRaidDataSave()
     {
         if(!_club.HaveRaid)
             return;
-        var t = _club.GetCurrentTitanData();
+        
+
         _data.PlayerId.Clear();
         foreach (var playerData in _club.clan_raid.leaderboard)
         {
@@ -138,6 +156,29 @@ public partial class RaidRobotModel : RobotModelBase
             _data.Player[id].SourceData = playerData;
         }
 
+    }
+
+    private async Task CheckEndRaid()
+    {
+        if(!_club.HaveRaid)
+            return;
+        var t = _club.GetCurrentTitanData();
+        if (t.current_hp > 0)
+            return;
+        if (_data.AttackInfos.Count > 0)
+        {
+            var data= GetAtkInfo(DateTime.Now - new TimeSpan(7, 0, 0, 0), DateTime.Now, true);
+            Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
+            foreach (var info in data)
+            {
+                res.Add(_data.Player[info.Key].Name,info.Value);
+            }
+            var f = GetModelDir() + "AtkInfo.png";
+            ClubTool.DrawAtkInfo(res,f,Card32Path,true);
+            _data.AttackInfos.Clear();
+            await SendGroupMsg("突袭结束了");
+            await UploadGroupFile("AtkInfo.png", $"AtkInfo_{DateTime.Now:MM_dd_HH_mm_ss}.png");
+        }
     }
 
     private async Task RefreshCallMe()
@@ -331,9 +372,10 @@ public partial class RaidRobotModel : RobotModelBase
                             _club = tmp;
                         }
 
-                        RefreshRaidDataSave();
+                        await RefreshRaidDataSave();
                         await RefreshRaidCardDataSave(all);
                         await RefreshCallMe();
+                        await CheckEndRaid();
                         SaveRaidData();
                         Console.WriteLine($"{DateTime.Now}-{Group}-部落刷新数据保存");
                     }
@@ -443,19 +485,29 @@ public partial class RaidRobotModel : RobotModelBase
         ClubData tmp = null;
         await Task.Run(async () =>
         {
-            if (_config.CanUse())
+            try
             {
-                tmp = _post.RaidCurrent(GetModelDir()+"RaidCurrent.json");
-                var msg = _post.GetForum(GetModelDir() + "GetForum.json");
-                var all= AttackShareInfo.GetAllAttackShareInfo(msg);
-                tmp.Init();
-                if (tmp != null)
+                if (_config.CanUse())
                 {
-                    _club = tmp;
+                    tmp = _post.RaidCurrent(GetModelDir()+"RaidCurrent.json");
+                    var msg = _post.GetForum(GetModelDir() + "GetForum.json");
+                    tmp.Init();
+                    if (tmp != null)
+                    {
+                        _club = tmp;
+                    }
+                    var all= AttackShareInfo.GetAllAttackShareInfo(msg);
+                    await RefreshRaidDataSave();
+                    await RefreshRaidCardDataSave(all);
+                
                 }
-                RefreshRaidDataSave();
-                await RefreshRaidCardDataSave(all);
             }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                tmp = null;
+            }
+            
         });
         return tmp;
     }
@@ -467,22 +519,41 @@ public partial class RaidRobotModel : RobotModelBase
         _post = new TT2Post();
         _post.Tt2Post = _config;
         _data = Load<RaidData>(DataFile);
+        _club = LoadCanBeNull<ClubData>("RaidCurrent.json");
         StartRefreshData();
         RegisterFun();
+        CheckAtkList();
         AllInstance.Add(this);
+    }
+
+    private void CheckAtkList()
+    {
+        HashSet<int> idSet = new HashSet<int>();
+        for (var i = _data.AttackInfos.Count - 1; i >= 0; i--)
+        {
+            var d = _data.AttackInfos[i];
+            if (idSet.Contains(d.Id))
+            {
+                _data.AttackInfos.RemoveAt(i);
+            }
+            else
+            {
+                idSet.Add(d.Id);
+            }
+        }
     }
 
     public void RegisterFun()
     {
         _argFun = new Dictionary<string, Func<GroupMsgData, Task<SoraMessage>>>()
         {
-            { "突袭命令", GetCmd },
-            { "突袭血量", LookHp },
+            { "帮助", GetCmd },
+            { "血", LookHp },
+            { "伤害", LookDmg },
             { "卡名字", ShowCardName },
             { "卡显示", GetShowCard },
             { "突袭刷新", RefreshData },
             { "查看突袭config", GetRaidConfig },
-            { "突袭伤害", LookDmg },
             { "我的数据", GetMyInfo },
             { "卡片数据", ShowMyCard },
             { "全员卡", GetAllCard },
@@ -497,7 +568,7 @@ public partial class RaidRobotModel : RobotModelBase
 
         _argLenFun = new Dictionary<string, Func<GroupMsgData, string, Task<SoraMessage>>>()
         {
-            { "游戏绑定", QQLinkGame },
+            { "绑定", QQLinkGame },
             { "设置次数", SetAtkCount },
             { "叫我", CallMeWhile },
             { "查询攻击时间", GetNearAtkInfo },
@@ -505,8 +576,9 @@ public partial class RaidRobotModel : RobotModelBase
             { "查询血量变动", LookLastHPChange },
             { "谁用了", GetWhoUesCard },
             { "添加卡显示", AddShowCard },
-            { "解析buff文件", ParseBuffInfoFile },
             { "移除卡显示", RemoveShowCard },
+            { "解析buff文件", ParseBuffInfoFile },
+            { "curl", ParseConfigInfoFile },
         };
 
     }
@@ -533,7 +605,7 @@ public partial class RaidRobotModel : RobotModelBase
         public int AtkCount=30;
         public int LastFromId;
         public bool TipNotShare;
-        public bool isRefresh = true;
+        public bool isRefresh = false;
         public DateTime LastTime;
     }
 
