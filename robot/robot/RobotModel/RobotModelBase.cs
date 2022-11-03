@@ -73,6 +73,25 @@ public class RobotModelBase
         return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
 
     }
+
+    public T LoadFormData<T>(string path)
+    {
+        var file = $"Data\\{ModelName}\\{path}";
+        if (!File.Exists(file))
+        {
+            return default;
+        }
+        return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
+    }
+    
+    public void SaveToData(string path,string json)
+    {
+        var p = $"Data\\{ModelName}\\";
+        var file = $"Data\\{ModelName}\\{path}";
+        if (!Directory.Exists(p))
+            Directory.CreateDirectory(p);
+        File.WriteAllText(file,json);
+    }
     
     public T LoadCanBeNull<T>(string path)
     {
