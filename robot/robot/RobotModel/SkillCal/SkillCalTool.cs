@@ -32,8 +32,8 @@ public static class SkillCalTool
             allData.Add(block,data.GetDicMat(block,ColNum,RowNum));
         }
 
-        int blockWidth = ColNum * 128;
-        int blockHeight = RowNum * 128;
+        int blockWidth = ColNum * 64;
+        int blockHeight = RowNum * 64;
 
         var row = (blocks.Count - 1) / 3 + 1;
 
@@ -54,20 +54,20 @@ public static class SkillCalTool
                     var d = mat[i, j];
                     if (d != null)
                     {
-                        g.DrawRectangle(Pens.Azure, x * blockWidth + i * 128 + 2, y * blockHeight + j * 128 + 2,
-                            124, 124);
+                        g.DrawRectangle(Pens.Azure, x * blockWidth + i * 64 + 1, y * blockHeight + j * 64 + 1,
+                            62, 62);
                         if (File.Exists($"{imgPath}{d.Img}.png"))
                         {
                             g.DrawImage(Image.FromFile($"{imgPath}{d.Img}.png"),
-                                x * blockWidth + i * 128 + 3, y * blockHeight + j * 128 + 3);
+                                x * blockWidth + i * 64 + 3, y * blockHeight + j * 64 + 3);
                         }
                         
                         if(core.Point.ContainsKey(d.Id) && core.Point[d.Id]>0)
                         {
-                            g.FillRectangle(Brushes.Gray, x * blockWidth + i * 128 + 64, y * blockHeight + j * 128 + 96,
-                                62, 30);
+                            g.FillRectangle(Brushes.Gray, x * blockWidth + i * 64 + 32, y * blockHeight + j * 64 + 48,
+                                31, 15);
                             g.DrawString(core.Point[d.Id].ToString(), font, Brushes.Azure,
-                                x * blockWidth + i * 128 + 70, y * blockHeight + j * 128 + 98);
+                                x * blockWidth + i * 64 + 35, y * blockHeight + j * 64 + 49);
 
                         }
                     }
