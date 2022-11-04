@@ -92,6 +92,17 @@ public class RobotModelBase
         }
         return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
     }
+
+    public string GetTextFromData(string path)
+    {
+        var file = $"Data\\{ModelName}\\{path}";
+        if (!File.Exists(file))
+        {
+            return string.Empty;
+        }
+
+        return File.ReadAllText(file);
+    }
     
     public void SaveToData(string path,string json)
     {

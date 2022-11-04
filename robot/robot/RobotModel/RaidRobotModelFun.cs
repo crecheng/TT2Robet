@@ -58,6 +58,43 @@ public partial class RaidRobotModel
         return "当前卡显示：\n" + s;
         await Task.CompletedTask;
     }
+    
+    /// <summary>
+    /// 通配卡
+    /// </summary>
+    /// <param name="data"></param>
+    /// <returns></returns>
+    private async Task<SoraMessage> ShowWildCard(GroupMsgData data)
+    {
+        if (data.IsAdmin|| data.IsGroupAdmin)
+        {
+            List<string> player = new List<string>(_data.Player.Keys);
+            player.Sort((x, y) =>
+            {
+                var a = 0;
+                var b = 0;
+                if (_data.Player[x].SourceData != null)
+                    a = _data.Player[x].SourceData.raid_wildcard_count;
+                if (_data.Player[y].SourceData != null)
+                    b = _data.Player[y].SourceData.raid_wildcard_count;
+                return b - a;
+            });
+            Dictionary<string, string> dic = new Dictionary<string, string>();
+            dic.Add("名字","通配卡");
+            foreach (var id in player)
+            {
+                string b = "未知";
+                if (_data.Player[id].SourceData != null)
+                    b = _data.Player[id].SourceData.raid_wildcard_count.ToString();
+                dic.Add(_data.Player[id].Name,b);
+            }
+            var f= GetModelDir() + "ShowWildCard.png";
+            ClubTool.DrawInfo(dic,f);
+            return Tool.Image(f);
+        }
+
+        return "你没权限";
+    }
 
     private async Task<SoraMessage> ResetAtkInfo(GroupMsgData data)
     {
@@ -555,7 +592,65 @@ public partial class RaidRobotModel
         return Tool.Image(f);
         await Task.CompletedTask;
     }
-    
+
+    private async Task<SoraMessage> ShowCardInfo(GroupMsgData data, string card)
+    {
+        if (string.IsNullOrEmpty(card))
+            return "请正确输入，如：查看卡凯旋";
+        var id = ClubTool.NameToIDCard(card);
+        if (string.IsNullOrEmpty(card))
+            return "没找到对于简称，查看简称可以命令：卡名字";
+        var cardData = DataManage.GetCardDataDataFirst(id);
+        Dictionary<string, string> dic = new Dictionary<string, string>();
+        dic.Add("ID",cardData.ID);
+        dic.Add("名字",cardData.Name);
+        dic.Add("描述",cardData.Note);
+        dic.Add("类别",cardData.Category);
+        dic.Add("Tier",cardData.Tier.ToString());
+        dic.Add("推荐部位",cardData.BestAgainst);
+        dic.Add("最大叠层",cardData.MaxStacks.ToString());
+        dic.Add("时间",cardData.Duration.ToString("F"));
+        dic.Add("几率",cardData.Chance.ToString("F"));
+        if (cardData.BonusTypeC != "None")
+        {
+            dic.Add("加成C",$"{cardData.BonusTypeC} : {cardData.BonusCValue.ToString("F3")}" );
+        }
+        if (cardData.BonusTypeD != "None")
+        {
+            dic.Add("加成D",$"{cardData.BonusTypeD} : {cardData.BonusDValue.ToString("F3")}" );
+        }
+        if (cardData.BonusTypeE != "None")
+        {
+            dic.Add("加成E",$"{cardData.BonusTypeE} : {cardData.BonusEValue.ToString("F3")}" );
+        }
+        if (cardData.BonusTypeF != "None")
+        {
+            dic.Add("加成F",$"{cardData.BonusTypeF} : {cardData.BonusFValue.ToString("F3")}" );
+        }
+
+        string st=String.Empty;
+        string sa=String.Empty;
+        string sb=String.Empty;
+        int rowCount = 5;
+        for (int i = 1; i <= 60; i++)
+        {
+            st += $"{i}\t";
+            sa += $"{cardData.BonusAValue[i - 1]:F3}\t";
+            sb += $"{cardData.BonusBValue[i - 1]:F3}\t";
+            if (i % rowCount == 0)
+            {
+                dic.Add($"等级{i-rowCount+1}-{i}",st);
+                if(cardData.BonusTypeA!="None")
+                    dic.Add($"{cardData.BonusTypeA}:{i-rowCount+1}-{i}",sa);
+                if(cardData.BonusTypeB!="None")
+                    dic.Add($"{cardData.BonusTypeB}:{i-rowCount+1}-{i}",sb);
+            }
+        }
+        var f=GetModelDir() + "ShowCardInfo.png";
+        ClubTool.DrawInfo(dic,f,800);
+        return Tool.Image(f);
+    }
+
     private async Task<SoraMessage> AddShowCard(GroupMsgData data, string card)
     {
         if (string.IsNullOrEmpty(card))

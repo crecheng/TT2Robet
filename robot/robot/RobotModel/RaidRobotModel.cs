@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.RegularExpressions;
+using ConfigData;
 using Newtonsoft.Json;
 using Sora.Entities.Segment;
 using Sora.EventArgs.SoraEvent;
@@ -14,6 +15,7 @@ public partial class RaidRobotModel : RobotModelBase
     public static string Card32Path = "Data\\RaidRobotModel\\Card-32\\";
     public static string Card64Path = "Data\\RaidRobotModel\\Card-64\\";
     public static List<RaidRobotModel> AllInstance = new List<RaidRobotModel>();
+    private static ConfigDataManage DataManage;
     private ClubData _club;
     private TT2Post _post;
     private TT2PostConfig _config;
@@ -528,6 +530,11 @@ public partial class RaidRobotModel : RobotModelBase
         _post.Tt2Post = _config;
         _data = Load<RaidData>(DataFile);
         _club = LoadCanBeNull<ClubData>("RaidCurrent.json");
+        if (DataManage == null)
+        {
+            DataManage = new ConfigDataManage();
+            DataManage.InitJson(GetTextFromData("RaidCardInfo.json"));
+        }
         StartRefreshData();
         RegisterFun();
         CheckAtkList();
@@ -560,6 +567,7 @@ public partial class RaidRobotModel : RobotModelBase
             { "伤害", LookDmg },
             { "卡名字", ShowCardName },
             { "卡显示", GetShowCard },
+            { "通配卡", ShowWildCard },
             { "突袭刷新", RefreshData },
             { "查看突袭config", GetRaidConfig },
             { "我的数据", GetMyInfo },
@@ -583,6 +591,7 @@ public partial class RaidRobotModel : RobotModelBase
             { "查询攻击卡片", GetAtkInfoByCard },
             { "查询血量变动", LookLastHPChange },
             { "谁用了", GetWhoUesCard },
+            { "查看卡", GetWhoUesCard },
             { "添加卡显示", AddShowCard },
             { "移除卡显示", RemoveShowCard },
             { "解析buff文件", ParseBuffInfoFile },
