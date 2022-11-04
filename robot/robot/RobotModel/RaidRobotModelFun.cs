@@ -71,22 +71,17 @@ public partial class RaidRobotModel
             List<string> player = new List<string>(_data.Player.Keys);
             player.Sort((x, y) =>
             {
-                var a = 0;
-                var b = 0;
-                if (_data.Player[x].SourceData != null)
-                    a = _data.Player[x].SourceData.raid_wildcard_count;
-                if (_data.Player[y].SourceData != null)
-                    b = _data.Player[y].SourceData.raid_wildcard_count;
-                return b - a;
+                return _data.Player[y].RaidLevel - _data.Player[y].RaidLevel;
             });
             Dictionary<string, string> dic = new Dictionary<string, string>();
-            dic.Add("名字","通配卡");
+            dic.Add("名字","通配卡\t突等");
             foreach (var id in player)
             {
+                var p = _data.Player[id];
                 string b = "未知";
-                if (_data.Player[id].SourceData != null)
-                    b = _data.Player[id].SourceData.raid_wildcard_count.ToString();
-                dic.Add(_data.Player[id].Name,b);
+                if (p.SourceData != null)
+                    b = p.SourceData.raid_wildcard_count.ToString();
+                dic.Add(p.Name, $"{b}\t{p.RaidLevel}");
             }
             var f= GetModelDir() + "ShowWildCard.png";
             ClubTool.DrawInfo(dic,f);
