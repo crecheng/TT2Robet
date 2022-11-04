@@ -37,11 +37,12 @@ public static class SkillCalTool
 
         var row = (blocks.Count - 1) / 3 + 1;
 
-        Bitmap bitmap = new Bitmap(blockWidth * 3, blockHeight * row);
+        Bitmap bitmap = new Bitmap(blockWidth * 3, blockHeight * row+100);
         Graphics g=Graphics.FromImage(bitmap);
-        Font font = new Font(FontFamily.GenericMonospace, 50f,FontStyle.Bold);
+        Font font = new Font(FontFamily.GenericMonospace, 22f,FontStyle.Bold);
         Font fontW = new Font(FontFamily.GenericMonospace, 60f,FontStyle.Bold);
         int b = 0;
+        
         foreach (var (key,mat) in allData)
         {
             int x = b % 3;
@@ -53,17 +54,20 @@ public static class SkillCalTool
                     var d = mat[i, j];
                     if (d != null)
                     {
+                        g.DrawRectangle(Pens.Azure, x * blockWidth + i * 128 + 2, y * blockHeight + j * 128 + 2,
+                            124, 124);
                         if (File.Exists($"{imgPath}{d.Img}.png"))
                         {
                             g.DrawImage(Image.FromFile($"{imgPath}{d.Img}.png"),
                                 x * blockWidth + i * 128 + 3, y * blockHeight + j * 128 + 3);
                         }
-                        if(core.Point.ContainsKey(d.Id))
+                        
+                        if(core.Point.ContainsKey(d.Id) && core.Point[d.Id]>0)
                         {
-                            g.DrawString(core.Point[d.Id].ToString(), fontW, Brushes.Azure,
-                                x * blockWidth + i * 128 + 20, y * blockHeight + j * 128 + 20);
-                            g.DrawString(core.Point[d.Id].ToString(), font, Brushes.Aqua,
-                                x * blockWidth + i * 128 + 28, y * blockHeight + j * 128 + 28);
+                            g.FillRectangle(Brushes.Gray, x * blockWidth + i * 128 + 64, y * blockHeight + j * 128 + 96,
+                                62, 30);
+                            g.DrawString(core.Point[d.Id].ToString(), font, Brushes.Azure,
+                                x * blockWidth + i * 128 + 70, y * blockHeight + j * 128 + 98);
 
                         }
                     }
@@ -72,7 +76,7 @@ public static class SkillCalTool
 
             b++;
         }
-
+        g.DrawString("加点数据还未完成，请工具人速速联系我的主人：创造城", font, Brushes.Aqua, 20, blockHeight * row+20);
         bitmap.Save(file);
     }
 }

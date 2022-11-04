@@ -378,10 +378,18 @@ public partial class RaidRobotModel : RobotModelBase
                         await CheckEndRaid();
                         SaveRaidData();
                         Console.WriteLine($"{DateTime.Now}-{Group}-部落刷新数据保存");
+                        _data.FailCount = 0;
                     }
                 }
                 catch (Exception e)
                 {
+                    _data.FailCount++;
+                    if (_data. FailCount > 5)
+                    {
+                        _data.isRefresh = false;
+                        await SendGroupMsg("账号数据失效，请重新设置！！！");
+                        await OutException(e);
+                    }
                     Console.WriteLine(e);
                 }
 
@@ -606,6 +614,7 @@ public partial class RaidRobotModel : RobotModelBase
         public int LastFromId;
         public bool TipNotShare;
         public bool isRefresh = false;
+        public int FailCount;
         public DateTime LastTime;
     }
 

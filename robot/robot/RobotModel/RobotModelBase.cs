@@ -35,6 +35,15 @@ public class RobotModelBase
         File.WriteAllText(file,text);
     }
 
+    public void CreateModelPath()
+    {
+        var file = $"{Config.DataPath}\\{Group}\\{ModelName}\\";
+        var p= Path.GetDirectoryName(file);
+        if (!Directory.Exists(p))
+            Directory.CreateDirectory(p);
+    }
+    
+
     public string Load(string path)
     {
         var file = $"{Config.DataPath}\\{Group}\\{ModelName}\\{path}";
@@ -111,7 +120,7 @@ public class RobotModelBase
     
     public async Task OutException(Exception s)
     {
-        await Manage.OutException(s.ToString());
+        await Manage.OutException($"{Group}-{ModelName}\n"+ s.ToString());
     }
 
 }

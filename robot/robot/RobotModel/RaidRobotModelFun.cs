@@ -25,6 +25,7 @@ public partial class RaidRobotModel
             {
                 _club = t;
                 _data.isRefresh = true;
+                _data.FailCount = 0;
                 return "刷新成功！";
             }
             else
@@ -468,7 +469,7 @@ public partial class RaidRobotModel
     private async Task<SoraMessage> QQLinkGame(GroupMsgData data, string code)
     {
         var sender = data.Sender;
-        string tip = $"请正确输入\n列如：\n{_startString}游戏绑定璀璨\n{_startString}游戏绑定abc123";
+        string tip = $"请正确输入\n列如：\n{_startString}绑定璀璨\n{_startString}绑定abc123";
         if (string.IsNullOrEmpty(code))
         {
             return tip;
