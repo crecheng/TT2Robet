@@ -1083,7 +1083,77 @@ public partial class RaidRobotModel
         return Tool.Image(f);
         await Task.CompletedTask;
     }
-    
+
+    private async Task<SoraMessage> InputPlayerData(GroupMsgData data, string other)
+    {
+        var pair= other.Split("/");
+        Dictionary<string, string> dic = new Dictionary<string, string>();
+        foreach (var s in pair)
+        {
+            var ss = s.Split('-');
+            dic.Add(ss[0], ss[1]);
+        }
+
+        int raid = int.Parse(dic["RaidLevel"]);
+        int totle = int.Parse(dic["TotalRaidCardLevels"]);
+        int skill = int.Parse(dic["SkillPointsOwned"]);
+        int scroll = int.Parse(dic["HeroScrollUpgrades"]);
+        int weapon = int.Parse(dic["HeroWeaponUpgrades"]);
+        int pet = int.Parse(dic["TotalPetLevels"]);
+        PlayerData playerData = null;
+        foreach (var (key, value) in _data.Player)
+        {
+            if (value.SourceData == null)
+            {
+                continue;
+            }
+
+            if (value.SourceData.player_raid_level == raid)
+            {
+                if (value.SourceData.total_card_level==totle
+                    && value.SourceData.total_skill_points==skill
+                    && value.SourceData.total_helper_weapons==weapon
+                    && value.SourceData.total_helper_scrolls==scroll
+                    && value.SourceData.total_pet_levels==pet
+                    )
+                {
+                    playerData = value;
+                }
+            }
+        }
+
+        if (playerData == null)
+        {
+            return "没有找到对应玩家";
+        }
+
+        int t = 0;
+        foreach (var (key,value) in ClubTool.CardEName)
+        {
+            if (dic.ContainsKey(key))
+            {
+                t+=Int32.Parse(dic[key]);
+            }
+        }
+
+        if (t != totle)
+            return "请不要自77人";
+        foreach (var (key,value) in ClubTool.CardEName)
+        {
+            if (dic.ContainsKey(key))
+            {
+                if (playerData.Card.ContainsKey(value))
+                    playerData.Card[value]=Int32.Parse(dic[key]);
+                else
+                    playerData.Card.Add(value, Int32.Parse(dic[key]));
+            }
+        }
+
+        return "更新成功";
+
+        return SoraMessage.Null;
+    }
+
 
 
     #endregion

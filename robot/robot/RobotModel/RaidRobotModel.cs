@@ -691,6 +691,7 @@ public partial class RaidRobotModel : RobotModelBase
             { "设置次数", SetAtkCount },
             { "叫我", CallMeWhile },
             { "个突", ShowSoloRaid },
+            { "导入数据", InputPlayerData },
             { "查询攻击时间", GetNearAtkInfo },
             { "查询攻击卡片", GetAtkInfoByCard },
             { "查询血量变动", LookLastHPChange },

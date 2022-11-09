@@ -71,6 +71,43 @@ namespace testrobot
             {"CelestialStatic","天体"},
             {"MirrorForce","镜像"},
         };
+        
+        public static Dictionary<string, string> CardEName = new Dictionary<string, string>()
+        {
+            {"WhipOfLightning","WhipOfLightning"},
+            {"FinisherAttack","VictoryMarch"},
+            {"TotemFairySkill","TotemofPower"},
+            {"PlagueAttack","ThrivingPlague"},
+            {"TeamTactics","TeamTactics"},
+            {"InnerTruth","SoulFire"},
+            {"SkullBash","SkullBash"},
+            {"RazorWind","RazorWind"},
+            {"Swarm","RavenousSwarm"},
+            {"MentalFocus","RancidGas"},
+            {"Disease","Radioactivity"},
+            {"Purify","PurifyingBlast"},
+            {"LimbBurst","PsychicChain"},
+            {"SuperheatMetal","PrismaticRift"},
+            {"MoonBeam","MoonBeam"},
+            {"RuneAttack","Maelstrom"},
+            {"ImpactAttack","InspiringForce"},
+            {"CrushingVoid","InsanityVoid"},
+            {"Shadow","GrimShadow"},
+            {"LimbSupport","GraspingVines"},
+            {"Fuse","FusionBomb"},
+            {"Fragmentize","Fragmentize"},
+            {"FlakShot","FlakShot"},
+            {"DecayingAttack","DecayingStrike"},
+            {"ExecutionersAxe","CrushingInstinct"},
+            {"Haymaker","CosmicHaymaker"},
+            {"BurstCount","ClanshipBarrage"},
+            {"ChainLightning","ChainofVengeance"},
+            {"BurningAttack","BlazingInferno"},
+            {"BurstBoost","AncestralFavor"},
+            {"PoisonAttack","AcidDrench"},
+            {"SpinalTap","SkeletalSmash"},
+            {"RuinousRust","RuinousRain"},
+        };
 
         public static Dictionary<string, string> CardDmageType = new Dictionary<string, string>()
         {
