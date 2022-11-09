@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using testrobot;
 // ReSharper disable All
@@ -19,6 +20,8 @@ public partial class RaidRobotModel
     {
         if (_config.CanUse())
         {
+            if (!(data.IsAdmin|| data.IsGroupAdmin))
+                return "你没权限！";
             await SendGroupMsg("刷新ing");
             var t = await RefreshData();
             if (t != null)
@@ -71,7 +74,7 @@ public partial class RaidRobotModel
             List<string> player = new List<string>(_data.Player.Keys);
             player.Sort((x, y) =>
             {
-                return _data.Player[y].RaidLevel - _data.Player[y].RaidLevel;
+                return _data.Player[y].RaidLevel - _data.Player[x].RaidLevel;
             });
             Dictionary<string, string> dic = new Dictionary<string, string>();
             dic.Add("名字","通配卡\t突等");
@@ -84,7 +87,7 @@ public partial class RaidRobotModel
                 dic.Add(p.Name, $"{b}\t{p.RaidLevel}");
             }
             var f= GetModelDir() + "ShowWildCard.png";
-            ClubTool.DrawInfo(dic,f);
+            ClubTool.DrawInfo(dic,f,200);
             return Tool.Image(f);
         }
 
@@ -265,6 +268,18 @@ public partial class RaidRobotModel
         {
             _data.TipNotShare = !_data.TipNotShare;
             return $"分享警告-{_data.TipNotShare}";
+        }
+
+        return "你没权限！";
+        await Task.CompletedTask;
+
+    }
+    private async Task<SoraMessage> TipDmgIsOut(GroupMsgData data)
+    {
+        if (data.IsAdmin|| data.IsGroupAdmin)
+        {
+            _data.TipDmgOut = !_data.TipDmgOut;
+            return $"溢伤提醒-{_data.TipDmgOut}";
         }
 
         return "你没权限！";
@@ -454,7 +469,7 @@ public partial class RaidRobotModel
         if (string.IsNullOrEmpty(card))
             return "请正确输入，如：查询攻击卡片凯旋";
         var id = ClubTool.NameToIDCard(card);
-        if (string.IsNullOrEmpty(card))
+        if (string.IsNullOrEmpty(id))
             return "没找到对于简称，查看简称可以命令：卡名字";
         Dictionary<string, List<AttackShareInfo>> dic = new Dictionary<string, List<AttackShareInfo>>();
         int c = 0;
@@ -550,7 +565,7 @@ public partial class RaidRobotModel
         if (string.IsNullOrEmpty(card))
             return "请正确输入，如：谁用了凯旋";
         var id = ClubTool.NameToIDCard(card);
-        if (string.IsNullOrEmpty(card))
+        if (string.IsNullOrEmpty(id))
             return "没找到对于简称，查看简称可以命令：卡名字";
         Dictionary<string, int> res = new Dictionary<string, int>();
         res.Add("总次数",0);
@@ -593,7 +608,7 @@ public partial class RaidRobotModel
         if (string.IsNullOrEmpty(card))
             return "请正确输入，如：查看卡凯旋";
         var id = ClubTool.NameToIDCard(card);
-        if (string.IsNullOrEmpty(card))
+        if (string.IsNullOrEmpty(id))
             return "没找到对于简称，查看简称可以命令：卡名字";
         var cardData = DataManage.GetCardDataDataFirst(id);
         Dictionary<string, string> dic = new Dictionary<string, string>();
@@ -608,19 +623,19 @@ public partial class RaidRobotModel
         dic.Add("几率",cardData.Chance.ToString("F"));
         if (cardData.BonusTypeC != "None")
         {
-            dic.Add("加成C",$"{cardData.BonusTypeC} : {cardData.BonusCValue.ToString("F3")}" );
+            dic.Add("加成C",$"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeC) } : {cardData.BonusCValue.ToString("F3")}" );
         }
         if (cardData.BonusTypeD != "None")
         {
-            dic.Add("加成D",$"{cardData.BonusTypeD} : {cardData.BonusDValue.ToString("F3")}" );
+            dic.Add("加成D",$"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeD)} : {cardData.BonusDValue.ToString("F3")}" );
         }
         if (cardData.BonusTypeE != "None")
         {
-            dic.Add("加成E",$"{cardData.BonusTypeE} : {cardData.BonusEValue.ToString("F3")}" );
+            dic.Add("加成E",$"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeE)} : {cardData.BonusEValue.ToString("F3")}" );
         }
         if (cardData.BonusTypeF != "None")
         {
-            dic.Add("加成F",$"{cardData.BonusTypeF} : {cardData.BonusFValue.ToString("F3")}" );
+            dic.Add("加成F",$"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeF)} : {cardData.BonusFValue.ToString("F3")}" );
         }
 
         string st=String.Empty;
@@ -629,16 +644,19 @@ public partial class RaidRobotModel
         int rowCount = 5;
         for (int i = 1; i <= 60; i++)
         {
-            st += $"{i}\t";
-            sa += $"{cardData.BonusAValue[i - 1]:F3}\t";
-            sb += $"{cardData.BonusBValue[i - 1]:F3}\t";
+            st += $"{i}\t\t";
+            sa += $"{cardData.BonusAValue[i - 1]:F3}\t\t";
+            sb += $"{cardData.BonusBValue[i - 1]:F3}\t\t";
             if (i % rowCount == 0)
             {
                 dic.Add($"等级{i-rowCount+1}-{i}",st);
                 if(cardData.BonusTypeA!="None")
-                    dic.Add($"{cardData.BonusTypeA}:{i-rowCount+1}-{i}",sa);
+                    dic.Add($"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeA)}:{i-rowCount+1}-{i}",sa);
                 if(cardData.BonusTypeB!="None")
-                    dic.Add($"{cardData.BonusTypeB}:{i-rowCount+1}-{i}",sb);
+                    dic.Add($"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeB)}:{i-rowCount+1}-{i}",sb);
+                st=String.Empty;
+                sa=String.Empty;
+                sb=String.Empty;
             }
         }
         var f=GetModelDir() + "ShowCardInfo.png";
@@ -651,7 +669,7 @@ public partial class RaidRobotModel
         if (string.IsNullOrEmpty(card))
             return "请正确输入，如：添加卡显示凯旋";
         var id = ClubTool.NameToIDCard(card);
-        if (string.IsNullOrEmpty(card))
+        if (string.IsNullOrEmpty(id))
             return "没找到对于简称，查看简称可以命令：卡名字";
         _data.ShowCard.Remove(id);
         _data.ShowCard.Add(id);
@@ -698,6 +716,9 @@ public partial class RaidRobotModel
                 case "八": i = 8; break;
             }
         }
+
+        if (type == "新王")
+            i = 99;
         if (i==0)
             return "请正确输入，如：叫我5骨";
         int sing = 1;
@@ -705,10 +726,13 @@ public partial class RaidRobotModel
             sing = 1;
         else if (end == "骨")
             sing = -1;
+        var t = i * sing;
+        if (t < -6)
+            return "小助手不会叫你的";
         var info = new CallMeInfo()
         {
             qq = data.Sender,
-            type = i * sing
+            type = t
         };
         _data.CallMe.Add(info);
 
@@ -720,7 +744,7 @@ public partial class RaidRobotModel
         if (string.IsNullOrEmpty(card))
             return "请正确输入，如：移除卡显示凯旋";
         var id = ClubTool.NameToIDCard(card);
-        if (string.IsNullOrEmpty(card))
+        if (string.IsNullOrEmpty(id))
             return "没找到对于简称，查看简称可以命令：卡名字";
         _data.ShowCard.Remove(id);
         string s=String.Empty;
@@ -804,7 +828,7 @@ public partial class RaidRobotModel
                 atkCount.Add(_data.Player[key].Name,value);
             }
             var f = GetModelDir() + "LookLastHPChange.png";
-            ClubTool.DrawTitanHPChangeInfo(d.dmg,atkCount,atkRes,d.Start,d.End,f,Card32Path);
+            ClubTool.DrawTitanHPChangeInfo(d.dmg,atkCount,atkRes,d.OutDmg, d.Start,d.End,f,Card32Path);
             return Tool.Image(f);
         }
         else 
@@ -996,6 +1020,15 @@ public partial class RaidRobotModel
                     config.s = urlArgs["s"];
                     config.json = json;
                 } break;
+                case "/solo_raid/leaderboards":
+                {
+                    if (!_config.key.ContainsKey(TT2Post.TT2Fun.SoloRaid))
+                        _config.key.Add(TT2Post.TT2Fun.SoloRaid,
+                            new TT2Post.SendInfo("/solo_raid/leaderboards", urlArgs["s"], json));
+                    var config= _config.key[TT2Post.TT2Fun.SoloRaid];
+                    config.s = urlArgs["s"];
+                    config.json = json;
+                } break;
                 default:
                     return "不支持的请求curl" + urlHead;
             }
@@ -1016,6 +1049,42 @@ public partial class RaidRobotModel
             return "解析失败";
         }
     }
+
+    private async Task<SoraMessage> ShowSoloRaid(GroupMsgData data, string other)
+    {
+        if (!_config.key.ContainsKey(TT2Post.TT2Fun.SoloRaid))
+            return "未配置/solo_raid/leaderboards";
+        await SendGroupMsg("获取中...");
+        var all = await RefreshSoloRaid();
+        if(all==null)
+            return "获取失败";
+        List<SoloRaidData> list=null;
+        if (string.IsNullOrEmpty(other))
+        {
+            list = all.clan;
+        }else if (other == "全球")
+        {
+            list = all.global;
+        }
+        if (list == null || list.Count == 0)
+            return "没有数据";
+        list.Sort((x,y)=>x.rank-y.rank);
+        Dictionary<string, string> res = new Dictionary<string, string>();
+        res.Add("名次-名字","时间\t\t层");
+        foreach (var play in list)
+        {
+            int t = play.completion_time_in_seconds;
+            string time = $"{(t / 3600):00}:{(t % 3600 / 60):00}:{(t % 60):00}";
+            res.Add($"{play.rank}  {play.display_name}",$"{time}\t{play.world_id}-{play.floors_completed}");
+        }
+
+        var f=GetModelDir() + "ShowSoloRaid.png";
+        ClubTool.DrawInfo(res,f,300);
+        return Tool.Image(f);
+        await Task.CompletedTask;
+    }
+    
+
 
     #endregion
 }

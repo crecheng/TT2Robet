@@ -68,6 +68,82 @@ namespace testrobot
             {"PoisonAttack","酸雨"},
             {"SpinalTap","骨骼"},
             {"RuinousRust","紫雨"},
+            {"CelestialStatic","天体"},
+            {"MirrorForce","镜像"},
+        };
+
+        public static Dictionary<string, string> CardDmageType = new Dictionary<string, string>()
+        {
+            { "AfflictedChanceSupport", "毒系几率加成" },
+            { "AfflictedDamageSupport", "毒系伤害加成" },
+            { "AllRaidDamageSupport", "全部伤害加成" },
+            { "ArmorDamageSupport", "白条伤害加成" },
+            { "BodyDamageSupport", "蓝条伤害加成" },
+            { "BurningDamageRate", "火海伤害" },
+            { "BurningPartChance", "触发火海提供的毒系几率加成" },
+            { "BurstChanceSupport", "爆发几率加成" },
+            { "BurstCountBonus", "爆发次数奖励" },
+            { "BurstCountDamage", "爆发次数伤害" },
+            { "BurstDamageSupport", "爆发伤害加成" },
+            { "CelestialStaticBurst", "天体静态爆发" },
+            { "CelestialStaticChargePerBurst", "天体静态爆发时消耗" },
+            { "CelestialStaticChargePerTap", "天体静态每次点击时加分" },
+            { "CelestialStaticMaxCharges", "天体静态最大积分数" },
+            { "ChainLightningBurst", "红链伤害" },
+            { "ChainLightningMaxTargets", "红链最高支持部位" },
+            { "ChestDamageSupport", "胸部伤害加成" },
+            { "DecayDamageExpo", "腐败伤害" },
+            { "DecayHealthCap", "腐败血量限制" },
+            { "DecayPercentRate", "腐败百分比增伤" },
+            { "DiseaseBonusRate", "放射性随时间提高的伤害" },
+            { "DiseaseDamageRate", "放射性伤害" },
+            { "ExposedBodyBoostSupport", "暴露的蓝条数量加成" },
+            { "ExposedBodyBoostSupportMaxParts", "暴露的蓝条数量加成上限" },
+            { "ExposedSkeletonBoostSupport", "暴露的骨架数量加成" },
+            { "ExposedSkeletonBoostSupportMaxParts", "暴露的骨架数量加成上限" },
+            { "FairyTotemDamage", "仙女加成" },
+            { "FairyTotemDuration", "仙女持续时间" },
+            { "FairyTotemRandomChance", "仙女出现几率" },
+            { "FairyTotemRate", "仙女飞行速度" },
+            { "FlakBurst", "防空伤害" },
+            { "FragmentizeArmorMult", "破甲对白条额外加成" },
+            { "FragmentizeBurst", "破甲伤害" },
+            { "FragmentizeEnchantedArmorMult", "破甲对诅咒额外加成" },
+            { "FuseExplosionMult", "核融触发的等待时间" },
+            { "FuseRepeatChance", "核融触发几率" },
+            { "HaymakerBurst", "激光伤害" },
+            { "HaymakerTapsNeeded", "每次触发需要的点击数" },
+            { "HeadDamageSupport", "头部伤害加成" },
+            { "LimbBurstDamage", "四肢爆发伤害" },
+            { "LimbBurstMult", "四肢部位额外加成数" },
+            { "LimbDamageSupport", "四肢伤害加成" },
+            { "MirrorForceBoost", "镜像的队友加成" },
+            { "MirrorForceBoostMax", "镜像队友加成上限" },
+            { "MirrorForceBurst", "镜像伤害" },
+            { "MoonBeamBurst", "月光伤害" },
+            { "MoonBeamChestMult", "月光对胸部的额外加成" },
+            { "PlagueAttackDamageMult", "瘟疫额外毒系部位的伤害加成" },
+            { "PlagueAttackDamageRate", "瘟疫基础伤害" },
+            { "PoisonDamageRate", "酸雨伤害" },
+            { "PurifyBonus", "净化清毒加成" },
+            { "PurifyDamage", "净化伤害" },
+            { "RazorWindBodyMult", "风刃蓝条额外加成" },
+            { "RazorWindBurst", "风刃伤害" },
+            { "RicochetDamageMult", "防空蓝条加成（疑似）" },
+            { "RuinousRustDamageRate", "紫雨伤害" },
+            { "RuinousRustEnchantedArmorMult", "紫雨对诅咒时的额外加成" },
+            { "RuneDamageBoost", "蓝球加成" },
+            { "RuneDamageRate", "蓝球伤害" },
+            { "ShadowDamageMult", "影子叠加加成" },
+            { "ShadowDamageRate", "影子伤害" },
+            { "SkeletonExposedArmorDamageSupport", "骨骼对二段加成" },
+            { "SkullBashBurst", "头骨伤害" },
+            { "SkullBashHeadMult", "头骨对头部额外加成" },
+            { "SwarmDamageRate", "蜂巢伤害" },
+            { "TeamTacticsClanMoraleBoost", "团队队友加成" },
+            { "WhipOfLightningBurst", "电鞭伤害" },
+            { "WhipOfLightningChance", "电鞭触发几率" },
+            { "WhipOfLightningChanceCap", "电鞭触发几率上限" },
         };
 
         public static Image GetImage(string path, bool useCache = true)
@@ -195,7 +271,22 @@ namespace testrobot
         {
             return DateTime.TryParseExact(s,"yyyy-MM-dd HH:mm:ss",null,DateTimeStyles.None, out DateTime time) ? time : default;
         }
-        
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dictionary"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        public static string TryGet(this Dictionary<string, string> dictionary, string key)
+        {
+            if (dictionary.TryGetValue(key, out string t))
+            {
+                return t;
+            }
+
+            return key;
+        }
         public static void DrawPlayerRaidDmg(
             ClubData club,
             string path,
@@ -296,16 +387,24 @@ namespace testrobot
 
         public static void DrawPlayerCard(string player, Dictionary<string,int> card,Dictionary<string,string> dic, string path,string imgPath)
         {
+            foreach (var (k,cn) in CardName)
+            {
+                if(!card.ContainsKey(k))
+                    card.Add(k,-1);
+            }
+            
             int rowCount = 10;
             int len = (card.Count-1) / rowCount+1;
             int cardStartY = 0;
             if (dic != null)
                 cardStartY = (dic.Count + 1) * 32-50;
+            card = new Dictionary<string, int>(card);
+
             Bitmap bitmap = new Bitmap(32 * rowCount, cardStartY+(len + 1) * 64);
             Graphics g=Graphics.FromImage(bitmap);
             Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
             Font sFont = new Font(FontFamily.GenericMonospace, 12f,FontStyle.Bold);
-            
+
             g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
             int i = 0;
             
@@ -324,9 +423,17 @@ namespace testrobot
                     g.DrawImage(png, new Point(x * 32, cardStartY+y * 64));
 
                 int level = card[key];
-                all += level;
-                cost += CardCost[level];
-                g.DrawString(card[key].ToString(), font, Brushes.Black, new Point(x * 32, cardStartY+y * 64 + 32));
+                if (level != -1)
+                {
+                    all += level;
+                    cost += CardCost[level];
+                    g.DrawString(level.ToString(), font, Brushes.Black, new Point(x * 32, cardStartY+y * 64 + 32));
+                }
+                else
+                {
+                    g.DrawString("?", font, Brushes.Black, new Point(x * 32, cardStartY+y * 64 + 32));
+                }
+
                 i++;
             }
 
@@ -610,12 +717,12 @@ namespace testrobot
             bitmap.Save(path);
         }
         
-        public static void DrawInfo(Dictionary<string, string> dic, string path,int len=100)
+        public static void DrawInfo(Dictionary<string, string> dic, string path,int len=100,float fontSize=15f)
         {
             
             Bitmap bitmap = new Bitmap(280 + len, 20+dic.Count*32);
             Graphics g=Graphics.FromImage(bitmap);
-            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            Font font = new Font(FontFamily.GenericMonospace, fontSize,FontStyle.Bold);
             g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
             int i = 0;
             foreach (var (key, value) in dic)
@@ -655,6 +762,7 @@ namespace testrobot
         public static Bitmap DrawTitanHPChangeInfoOne(Dictionary<TitanData.PartName,double> dmg,
             Dictionary<string,int> atkCount,
             Dictionary<string,List<AttackShareInfo>> atkInfo,
+            double outDmg,
             DateTime start,DateTime end, string imgPath)
         {
             int max = 0;
@@ -663,8 +771,8 @@ namespace testrobot
                 if (value.Count > max)
                     max = value.Count;
             }
-
-            var maxRow = Math.Max(dmg.Count, atkCount.Count);
+            
+            var maxRow = Math.Max(dmg.Count+1, atkCount.Count);
             
             Bitmap bitmap = new Bitmap(Math.Max(280 + (32 *3+50)* max+50,400+300), 40+(maxRow+1)*32+atkInfo.Count*96);
             Graphics g=Graphics.FromImage(bitmap);
@@ -672,7 +780,12 @@ namespace testrobot
             g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
 
             g.DrawString($"{start:HH:mm:ss}-{end:HH:mm:ss}", font, Brushes.Black, 10, 10);
-            int i = 1;
+            if (outDmg > 0)
+            {
+                g.DrawString("溢出伤害", font, Brushes.Black, 10,  32 + 3);
+                g.DrawString(outDmg.ShowNum(), font, Brushes.Brown, 150,  32 + 3);
+            }
+            int i = 2;
             foreach (var (key, value) in dmg)
             {
                 if (i % 2 == 0)
@@ -737,10 +850,33 @@ namespace testrobot
             Dictionary<TitanData.PartName,double> dmg,
             Dictionary<string,int> atkCount,
             Dictionary<string,List<AttackShareInfo>> atkInfo,
+            double outDmg,
             DateTime start,DateTime end,
             string path,string imgPath)
         {
-            var bitmap= DrawTitanHPChangeInfoOne(dmg, atkCount, atkInfo, start, end, imgPath);
+            var bitmap= DrawTitanHPChangeInfoOne(dmg, atkCount, atkInfo,outDmg, start, end, imgPath);
+            bitmap.Save(path);
+        }
+
+        public static void DrawTitanProgress(List<(string name, double hp)> titans, int currentIndex, double hp, string path)
+        {
+            Bitmap bitmap = new Bitmap(400, titans.Count*36);
+            Graphics g=Graphics.FromImage(bitmap);
+            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
+            for (var i = 0; i < titans.Count; i++)
+            {
+                var d = titans[i];
+                g.DrawString($"{d.name}\t{d.hp.ShowNum()}",font,Brushes.DarkGreen,30,i*36+5);
+                if (i == currentIndex)
+                {
+                    g.FillRectangle(Brushes.Aqua, 10,i*36+3,(float)(380*(hp/d.hp)),30);
+                }else if (i > currentIndex)
+                {
+                    g.FillRectangle(Brushes.Aqua, 10,i*36+3,380,30);
+                }
+            }
+            
             bitmap.Save(path);
         }
     }

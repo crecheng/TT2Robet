@@ -14,6 +14,8 @@ namespace testrobot
         public static List<AttackShareInfo> GetAllAttackShareInfo(MsgDataList dataList)
         {
             var list = new List<AttackShareInfo>();
+            if (dataList.messages == null)
+                return list;
             foreach (var msg in dataList.messages)
             {
                 if (msg.message_type == "RaidAttackSummaryShare")

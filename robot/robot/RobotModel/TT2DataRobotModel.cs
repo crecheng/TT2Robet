@@ -9,8 +9,8 @@ public class TT2DataRobotModel: RobotModelBase
 {
     public override string ModelName { get; } = "TT2DataRobotModel";
     public static Dictionary<long, List<string>> QQLink;
-    public static string DataFile = "Data\\TT2DataRobotModle\\QQLink.json";
-    public static string DataPath = "Data\\TT2DataRobotModle\\";
+    public static string DataFile = "Data\\TT2DataRobotModel\\QQLink.json";
+    public static string DataPath = "Data\\TT2DataRobotModel\\";
     private Dictionary<string, Func<GroupMsgData, Task<SoraMessage>>> _argFun;
     private Dictionary<string, Func<GroupMsgData,string, Task<SoraMessage>>> _argLenFun;
     private int _drawCount;
@@ -40,6 +40,7 @@ public class TT2DataRobotModel: RobotModelBase
         if (!Directory.Exists(DataPath))
             Directory.CreateDirectory(DataPath);
         RobotName = robotName;
+        Group = group;
         if (QQLink == null)
         {
             if (File.Exists(DataFile))
@@ -62,7 +63,8 @@ public class TT2DataRobotModel: RobotModelBase
             {
                 { "绑定", QQLinkGame },
                 { "解绑", QQUnLinkGame },
-                { "切换", SwitchLinkGame }
+                { "切换", SwitchLinkGame },
+                { "查看卡", ShowCardInfo },
             };
         }
     }
@@ -147,6 +149,71 @@ public class TT2DataRobotModel: RobotModelBase
         }
     }
 
+    private async Task<SoraMessage> ShowCardInfo(GroupMsgData data, string card)
+    {
+        if (string.IsNullOrEmpty(card))
+            return "";
+        var id = ClubTool.NameToIDCard(card);
+        if (string.IsNullOrEmpty(id))
+        {
+            SoraMessage msg = "小助手没有找到对应的卡\n小助手目前只知道这些卡哦\n";
+            msg.Add(Tool.Image(DataPath+"ShowCardName.png"));
+            return msg;
+        }
+        var cardData = RaidRobotModel.DataManage.GetCardDataDataFirst(id);
+        Dictionary<string, string> dic = new Dictionary<string, string>();
+        dic.Add("ID",cardData.ID);
+        dic.Add("名字",cardData.Name);
+        dic.Add("描述",cardData.Note);
+        dic.Add("类别",cardData.Category);
+        dic.Add("Tier",cardData.Tier.ToString());
+        dic.Add("推荐部位",cardData.BestAgainst);
+        dic.Add("最大叠层",cardData.MaxStacks.ToString());
+        dic.Add("时间",cardData.Duration.ToString("F"));
+        dic.Add("几率",cardData.Chance.ToString("F"));
+        if (cardData.BonusTypeC != "None")
+        {
+            dic.Add("加成C",$"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeC) } : {cardData.BonusCValue.ToString("F3")}" );
+        }
+        if (cardData.BonusTypeD != "None")
+        {
+            dic.Add("加成D",$"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeD)} : {cardData.BonusDValue.ToString("F3")}" );
+        }
+        if (cardData.BonusTypeE != "None")
+        {
+            dic.Add("加成E",$"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeE)} : {cardData.BonusEValue.ToString("F3")}" );
+        }
+        if (cardData.BonusTypeF != "None")
+        {
+            dic.Add("加成F",$"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeF)} : {cardData.BonusFValue.ToString("F3")}" );
+        }
+
+        string st=String.Empty;
+        string sa=String.Empty;
+        string sb=String.Empty;
+        int rowCount = 5;
+        for (int i = 1; i <= 60; i++)
+        {
+            st += $"{i}\t\t";
+            sa += $"{cardData.BonusAValue[i - 1]:F3}\t\t";
+            sb += $"{cardData.BonusBValue[i - 1]:F3}\t\t";
+            if (i % rowCount == 0)
+            {
+                dic.Add($"等级{i-rowCount+1}-{i}",st);
+                if(cardData.BonusTypeA!="None")
+                    dic.Add($"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeA)}:{i-rowCount+1}-{i}",sa);
+                if(cardData.BonusTypeB!="None")
+                    dic.Add($"{ClubTool.CardDmageType.TryGet(cardData.BonusTypeB)}:{i-rowCount+1}-{i}",sb);
+                st=String.Empty;
+                sa=String.Empty;
+                sb=String.Empty;
+            }
+        }
+        var f=DataPath + $"ShowCardInfo{(++_drawCount) / 20}.png";
+        ClubTool.DrawInfo(dic, f, 800);
+        return Tool.Image(f);
+    }
+    
     private RaidRobotModel.PlayerData SearchPlayer(string code)
     {
         foreach (var model in RaidRobotModel.AllInstance)

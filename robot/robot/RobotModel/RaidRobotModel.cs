@@ -15,15 +15,18 @@ public partial class RaidRobotModel : RobotModelBase
     public static string Card32Path = "Data\\RaidRobotModel\\Card-32\\";
     public static string Card64Path = "Data\\RaidRobotModel\\Card-64\\";
     public static List<RaidRobotModel> AllInstance = new List<RaidRobotModel>();
-    private static ConfigDataManage DataManage;
+    public static ConfigDataManage DataManage;
     private ClubData _club;
     private TT2Post _post;
     private TT2PostConfig _config;
-    private Task _refreshDataTask;
+    
+    private static Task _refreshDataTask;
+    private static Queue<Func<Task>> _refreshQueue=new Queue<Func<Task>>();
+    private static Queue<RaidRobotModel> _refreshDataQueue=new Queue<RaidRobotModel>();
+    
     private static string ConfigFile = "config.json";
     private static string DataFile = "data.json";
     private TimeSpan _refreshCd = new TimeSpan(0, 0, 5, 0);
-    private TimeSpan _refreshFromCd = new TimeSpan(0, 0, 10, 0);
     private RaidData _data;
     private string _startString = "#";
     private int showMyCardCount;
@@ -50,6 +53,7 @@ public partial class RaidRobotModel : RobotModelBase
             {
                 var arg = data.Text.Substring(_startString.Length);
                 SetIsAutoRefresh(data, arg);
+                await ShowUesClub(data, arg);
                 if (_argFun.ContainsKey(arg))
                     return await _argFun[arg].Invoke(data);
 
@@ -86,6 +90,26 @@ public partial class RaidRobotModel : RobotModelBase
                 _data.isRefresh = true;
                 SaveRaidData();
             }
+        }
+    }
+    
+    private async Task ShowUesClub(GroupMsgData data, string arg)
+    {
+        if (data.IsAdmin )
+        {
+            if (arg == "使用部落")
+            {
+                string s = string.Empty;
+                foreach (var raidRobotModel in AllInstance)
+                {
+                    if (raidRobotModel._data.isRefresh)
+                    {
+                        s += $"{raidRobotModel._data.ClubCode}-{raidRobotModel._data.ClubName}\n";
+                    }
+                }
+                await SendGroupMsg(s);
+            }
+
         }
     }
     
@@ -139,8 +163,8 @@ public partial class RaidRobotModel : RobotModelBase
     {
         if(!_club.HaveRaid)
             return;
-        
 
+        _data.ClubCode = _club.clan_raid.clan_code;
         _data.PlayerId.Clear();
         foreach (var playerData in _club.clan_raid.leaderboard)
         {
@@ -154,7 +178,9 @@ public partial class RaidRobotModel : RobotModelBase
                     Code = id,
                     Name = name
                 });
+            _data.ClubName = Regex.Unescape(playerData.clan_name);
             _data.Player[id].Name = name;
+            _data.Player[id].RaidLevel = playerData.player_raid_level;
             _data.Player[id].SourceData = playerData;
         }
 
@@ -183,10 +209,16 @@ public partial class RaidRobotModel : RobotModelBase
         }
     }
 
-    private async Task RefreshCallMe()
+    private async Task RefreshCallMe(ClubData last)
     {
         if(_data.CallMe.Count<=0)
             return;
+        if (!_club.HaveRaid)
+        {
+            _data.CallMe.Clear();
+        }
+
+        bool isNew = last.titan_lords.currentIndex != _club.titan_lords.currentIndex;
         var titan = _club.GetCurrentTitanData().GetBodyInfo();
         SoraMessage msg = "小助手提醒你，打突袭了！\n";
         int c = 0;
@@ -195,7 +227,13 @@ public partial class RaidRobotModel : RobotModelBase
             var info = _data.CallMe[i];
             if (info.type > 0)
             {
-                if (titan.blue >= info.type)
+                if (info.type == 99 && isNew)
+                {
+                    c++;
+                    msg.Add(SoraSegment.At(info.qq));
+                    _data.CallMe.RemoveAt(i);
+                }
+                else if (titan.blue >= info.type)
                 {
                     c++;
                     msg.Add(SoraSegment.At(info.qq));
@@ -349,70 +387,90 @@ public partial class RaidRobotModel : RobotModelBase
     {
         return _config.GetEasyData();
     }
-    private void StartRefreshData()
+
+    private async Task RefreshClubData()
     {
-        _refreshDataTask=Task.Run(async () =>
+        try
         {
-            await Task.Delay(_lenCd * 20000);
-            while (true)
+            Console.WriteLine($"{DateTime.Now}-{Group}-部落刷新数据");
+            _data.LastRefreshTime=DateTime.Now;
+            if (_config.CanUse() && _data.isRefresh)
             {
-                try
+                ClubData tmp = _post.RaidCurrent(GetModelDir() + "RaidCurrent.json");
+                var msg = _post.GetForum(GetModelDir() + "GetForum.json");
+                var all = AttackShareInfo.GetAllAttackShareInfo(msg);
+                tmp.Init();
+                var last = _club;
+                if (tmp != null)
                 {
-                    Console.WriteLine($"{DateTime.Now}-{Group}-部落刷新数据");
-                    if (_config.CanUse() && _data.isRefresh)
-                    {
-                        ClubData tmp = _post.RaidCurrent(GetModelDir() + "RaidCurrent.json");
-                        var msg = _post.GetForum(GetModelDir() + "GetForum.json");
-                        var all = AttackShareInfo.GetAllAttackShareInfo(msg);
-                        tmp.Init();
-                        var last = _club;
-                        if (tmp != null)
-                        {
-                            Console.WriteLine("OK");
-                            int res = RefreshTitanDmg(last, tmp, all);
-                            Console.WriteLine(res);
-                            _club = tmp;
-                        }
-
-                        await RefreshRaidDataSave();
-                        await RefreshRaidCardDataSave(all);
-                        await RefreshCallMe();
-                        await CheckEndRaid();
-                        SaveRaidData();
-                        Console.WriteLine($"{DateTime.Now}-{Group}-部落刷新数据保存");
-                        _data.FailCount = 0;
-                    }
-                }
-                catch (Exception e)
-                {
-                    _data.FailCount++;
-                    if (_data. FailCount > 5)
-                    {
-                        _data.isRefresh = false;
-                        await SendGroupMsg("账号数据失效，请重新设置！！！");
-                        await OutException(e);
-                    }
-                    Console.WriteLine(e);
+                    Console.WriteLine("OK");
+                    int res = await RefreshTitanDmg(last, tmp, all);
+                    Console.WriteLine(res);
+                    _club = tmp;
                 }
 
-
-                await Task.Delay(_refreshCd);
+                await RefreshRaidDataSave();
+                await RefreshRaidCardDataSave(all);
+                await RefreshCallMe(last);
+                await CheckEndRaid();
+                SaveRaidData();
+                Console.WriteLine($"{DateTime.Now}-{Group}-部落刷新数据保存");
+                _data.FailCount = 0;
             }
-        });
+        }
+        catch (Exception e)
+        {
+            _data.FailCount++;
+            if (_data.FailCount > 5)
+            {
+                _data.isRefresh = false;
+                await SendGroupMsg("账号数据失效，请重新设置！！！");
+                await OutException(e);
+            }
+
+            Console.WriteLine(e);
+        }
     }
 
-    private int RefreshTitanDmg(ClubData lastClub, ClubData thisData, List<AttackShareInfo> atk)
+    private async Task StartRefreshClubDataQueue()
+    {
+        while (_refreshQueue.Count>0)
+        {
+            var t = _refreshQueue.Dequeue();
+            var data = _refreshDataQueue.Dequeue();
+            if ((DateTime.Now - data._data.LastRefreshTime) >= _refreshCd)
+            {
+                await t.Invoke();
+            }
+            _refreshQueue.Enqueue(t);
+            _refreshDataQueue.Enqueue(data);
+            await Task.Delay(10000);
+        }
+    }
+
+    private async Task<int> RefreshTitanDmg(ClubData lastClub, ClubData thisData, List<AttackShareInfo> atk)
     {
         try
         {
             if (lastClub == null)
                 return -1;
+            if (!thisData.HaveRaid)
+                return -1;
             Dictionary<string, int> atkCount = new Dictionary<string, int>();
+            double thisDmg=0;
+            double lastDmg=0;
+            var dmgAll = thisDmg - lastDmg;
+            double titanDmg = 0;
             foreach (var playerData in thisData.clan_raid.leaderboard)
             {
+                thisDmg += playerData.score;
                 var a = playerData.num_attacks - _data.Player[playerData.player_code].AtkCount;
                 if (a > 0)
                     atkCount.Add(playerData.player_code, a);
+            }
+            foreach (var playerData in lastClub.clan_raid.leaderboard)
+            {
+                lastDmg += playerData.score;
             }
 
             List<int> atkIdList = new List<int>();
@@ -431,12 +489,14 @@ public partial class RaidRobotModel : RobotModelBase
                 if (thisData.titan_lords.currentIndex != lastClub.titan_lords.currentIndex)
                 {
                     dmg.Add(TitanData.PartName.Last, lastClub.GetCurrentTitanData().current_hp);
+                    titanDmg += lastClub.GetCurrentTitanData().current_hp;
                     var current = thisData.GetCurrentTitanData();
                     foreach (var part in current.parts)
                     {
                         if (Math.Abs(part.total_hp - part.current_hp) > 0.01)
                         {
                             var d = part.total_hp - part.current_hp;
+                            titanDmg += d;
                             dmg.Add(part.part_id, d);
                         }
                     }
@@ -455,20 +515,29 @@ public partial class RaidRobotModel : RobotModelBase
                         var d = last[part.part_id] - part.current_hp;
                         if (Math.Abs(d) > 0.01)
                         {
+                            titanDmg += d;
                             dmg.Add(part.part_id, d);
                         }
 
                     }
                 }
 
+                double outDmg = dmgAll - titanDmg;
+                if (outDmg < 100)
+                    outDmg = 0;
                 _data.TitanDmgList.Add(new TitanDmg()
                 {
                     AttackInfoIdList = atkIdList,
                     AttackCount = atkCount,
+                    OutDmg = outDmg,
                     dmg = dmg,
                     End = DateTime.Now,
                     Start = _data.LastTime
                 });
+                if (outDmg > 0 && _data.TipDmgOut)
+                {
+                    await SendGroupMsg($"伤害溢出 {outDmg.ShowNum()}");
+                }
             }
             else if (atkCount.Count == 0 && atkIdList.Count > 0)
             {
@@ -488,8 +557,7 @@ public partial class RaidRobotModel : RobotModelBase
             return -99;
         }
     }
-
-
+    
     private async Task<ClubData> RefreshData()
     {
         ClubData tmp = null;
@@ -521,6 +589,28 @@ public partial class RaidRobotModel : RobotModelBase
         });
         return tmp;
     }
+    
+    private async Task<AllSoloRaidData> RefreshSoloRaid()
+    {
+        AllSoloRaidData tmp = null;
+        await Task.Run(async () =>
+        {
+            try
+            {
+                if (_config.CanUse())
+                {
+                    tmp = _post.SoloRaid(GetModelDir()+"SoloRaid.json");
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                tmp = null;
+            }
+            
+        });
+        return tmp;
+    }
 
     public override void Init(long group,string robotName)
     {
@@ -530,15 +620,27 @@ public partial class RaidRobotModel : RobotModelBase
         _post.Tt2Post = _config;
         _data = Load<RaidData>(DataFile);
         _club = LoadCanBeNull<ClubData>("RaidCurrent.json");
+        InitStatic();
+        RegisterFun();
+        CheckAtkList();
+        AllInstance.Add(this);
+    }
+
+    private void InitStatic()
+    {
         if (DataManage == null)
         {
             DataManage = new ConfigDataManage();
             DataManage.InitJson(GetTextFromData("RaidCardInfo.json"));
         }
-        StartRefreshData();
-        RegisterFun();
-        CheckAtkList();
-        AllInstance.Add(this);
+
+        //刷新线程
+        _refreshQueue.Enqueue(this.RefreshClubData);
+        _refreshDataQueue.Enqueue(this);
+        if (_refreshDataTask == null)
+        {
+            _refreshDataTask = Task.Run(StartRefreshClubDataQueue);
+        }
     }
 
     private void CheckAtkList()
@@ -578,6 +680,7 @@ public partial class RaidRobotModel : RobotModelBase
             { "查询攻击本轮", GetNearAtkInfoThisRound },
             { "本轮时间", GetThisRoundTime },
             { "分享警告", TipNotShareSwitch },
+            { "溢伤警告", TipDmgIsOut },
             { "分享统计", ShareCountShow },
             { "重置并导出攻击", ResetAtkInfo }
         };
@@ -587,17 +690,17 @@ public partial class RaidRobotModel : RobotModelBase
             { "绑定", QQLinkGame },
             { "设置次数", SetAtkCount },
             { "叫我", CallMeWhile },
+            { "个突", ShowSoloRaid },
             { "查询攻击时间", GetNearAtkInfo },
             { "查询攻击卡片", GetAtkInfoByCard },
             { "查询血量变动", LookLastHPChange },
             { "谁用了", GetWhoUesCard },
-            { "查看卡", GetWhoUesCard },
+            { "查看卡", ShowCardInfo },
             { "添加卡显示", AddShowCard },
             { "移除卡显示", RemoveShowCard },
             { "解析buff文件", ParseBuffInfoFile },
             { "curl", ParseConfigInfoFile },
         };
-
     }
     
     private void SaveRaidData()
@@ -622,9 +725,13 @@ public partial class RaidRobotModel : RobotModelBase
         public int AtkCount=30;
         public int LastFromId;
         public bool TipNotShare;
+        public bool TipDmgOut;
         public bool isRefresh = false;
         public int FailCount;
         public DateTime LastTime;
+        public DateTime LastRefreshTime;
+        public string ClubCode;
+        public string ClubName;
     }
 
     class CallMeInfo
@@ -635,6 +742,7 @@ public partial class RaidRobotModel : RobotModelBase
 
     public class TitanDmg
     {
+        public double OutDmg;
         public Dictionary<TitanData.PartName, double> dmg=new Dictionary<TitanData.PartName, double>();
         public List<int> AttackInfoIdList = new List<int>();
         public Dictionary<string, int> AttackCount = new Dictionary<string, int>();

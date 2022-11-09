@@ -119,8 +119,11 @@ public static class Manage
             .RunCatch(e => Log.Error("Sora Service", Log.ErrorLogBuilder(e)));
         await Task.Delay(1000);
         var list = await Api.GetGroupList();
-        list.groupList.ForEach(id=>
-            _groupRobots.Add(id.GroupId,new GroupSoraRobot(id.GroupId))
-            );
+        list.groupList.ForEach(id =>
+        {
+            if(!_groupRobots.ContainsKey(id.GroupId))
+                _groupRobots.Add(id.GroupId, new GroupSoraRobot(id.GroupId));
+            
+        });
     }
 }

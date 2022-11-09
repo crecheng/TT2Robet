@@ -7,7 +7,7 @@ public class SkillCalRobotModel: RobotModelBase
     private Queue<SkillCalCore> _queue = new Queue<SkillCalCore>();
     public override string ModelName => "SkillCalRobotModel";
     private string start;
-    private static string SkillImgPath="Data\\SkillCalRobotModel\\Img\\";
+    private static string SkillImgPath="Data\\SkillCalRobotModel\\SkillImg\\";
     private int Count = 0;
     public override async Task<SoraMessage> GetMsg(GroupMsgData data)
     {

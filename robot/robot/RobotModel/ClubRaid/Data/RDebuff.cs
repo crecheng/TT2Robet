@@ -8,7 +8,9 @@ public class RDebuff
 
     public static string Translate(string s)
     {
-        return buffName[s];
+        if(buffName.ContainsKey(s))
+            return buffName[s];
+        return s;
     }
 
     public override string ToString()
@@ -25,6 +27,7 @@ public class RDebuff
         { "ChestDamage", "胸部伤害" },
         { "AfflictedDamage", "毒卡伤害" },
         { "BodyDamage", "蓝条伤害" },
+        { "BurstDamagePerEnchant", "每部位爆卡伤害" },
         { "LimbDamage", "四肢伤害" },
         { "SupportEffect", "支持卡" },
         { "BurstChance", "爆卡几率" },

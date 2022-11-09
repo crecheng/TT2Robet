@@ -8,10 +8,10 @@ namespace testrobot
     [SuppressMessage("Interoperability", "CA1416:验证平台兼容性")]
     public class TitanData
     {
-        public List<object> bonuses;
+        public List<DeBuff> bonuses;
         public double current_hp;
         public double total_hp;
-        public List<object> enchant_bonuses;
+        public List<DeBuff> enchant_bonuses;
         public string enemy_id;
         public string enemy_name;
         public List<Part> parts;
@@ -99,6 +99,7 @@ namespace testrobot
             Bitmap bitmap = new Bitmap(520, 520);
             Graphics g=Graphics.FromImage(bitmap);
             Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            Font fontS = new Font(FontFamily.GenericMonospace, 12f,FontStyle.Bold);
             Brush brush = new SolidBrush(Color.Black);
             Brush whiteBrush = new SolidBrush(Color.White);
             Brush indianRedBrush = new SolidBrush(Color.IndianRed);
@@ -156,6 +157,29 @@ namespace testrobot
             if(debuffDmg>0)
                 g.FillRectangle(Brushes.HotPink,20,10,490*ArmorDeBuffPercentage(),25);
             g.DrawString(haveArmor.ShowNum(),font,grayBrush1,25,12);
+
+            #endregion
+
+            #region 描述诅咒
+
+            if (bonuses != null && bonuses.Count > 0)
+            {
+                var sing = "";
+                if (bonuses[0].BonusAmount > 0)
+                    sing = "+";
+                g.DrawString($"{RDebuff.Translate(bonuses[0].BonusType)} {sing}{bonuses[0].BonusAmount:P2}",
+                    fontS,Brushes.Azure, 330,100);
+            }
+            if (enchant_bonuses != null && enchant_bonuses.Count > 0)
+            {
+                var sing = "";
+                if (enchant_bonuses[0].BonusAmount > 0)
+                    sing = "+";
+                g.DrawString(
+                    $"{RDebuff.Translate(enchant_bonuses[0].BonusType)} {sing}{enchant_bonuses[0].BonusAmount:P2}",
+                    fontS, Brushes.Azure, 330, 130);
+            }
+            
 
             #endregion
             

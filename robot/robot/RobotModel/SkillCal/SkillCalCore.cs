@@ -157,41 +157,43 @@ public class SkillCalCore
         }
     }
 
-    SkillCalData GetSkillCalData(string id,int level)
+    SkillCalData GetSkillCalData(string id, int level)
     {
         var data = SkillCalDataManage.Instance.Datas[id];
-        var levelData = data.Level[level - 1];
-        var lastCalNum = level == 1 ? 1.0 : data.Level[level - 2].CalNum;
-        var up = levelData.CalNum / lastCalNum;
-        if(level>data.MaxLevel)
+        if (level > data.MaxLevel)
         {
-            var re1= new SkillCalData()
+            var re1 = new SkillCalData()
             {
                 Id = id,
-                SP = levelData.Cost,
+                SP = 0,
                 Level = level,
                 Cal = 0,
                 Block = data.Block
             };
             return re1;
         }
-        
+
+        var levelData = data.Level[level - 1];
+        var lastCalNum = level == 1 ? 1.0 : data.Level[level - 2].CalNum;
+        var up = levelData.CalNum / lastCalNum;
+
+
         BFloat a = 1;
         foreach (var s in Build)
         {
-            if(SkillCalDataManage.Instance.AdditionConvert.ContainsKey(s))
+            if (SkillCalDataManage.Instance.AdditionConvert.ContainsKey(s))
             {
                 var all = SkillCalDataManage.Instance.AdditionConvert[s];
-                if(!string.IsNullOrEmpty(data.CalType) && all.ContainsKey(data.CalType))
+                if (!string.IsNullOrEmpty(data.CalType) && all.ContainsKey(data.CalType))
                 {
                     var add = all[data.CalType];
                     a *= Math.Pow(up, add);
                 }
             }
         }
-        
-        BFloat num = BFloat.Pow(a,1.0/levelData.Cost);
-        var re= new SkillCalData()
+
+        BFloat num = BFloat.Pow(a, 1.0 / levelData.Cost);
+        var re = new SkillCalData()
         {
             Id = id,
             SP = levelData.Cost,
@@ -201,8 +203,9 @@ public class SkillCalCore
             Block = data.Block
         };
         return re;
+
     }
-    
+
     SkillCalData GetSkillCalDataByPre(string id,int level)
     {
         var data = SkillCalDataManage.Instance.Datas[id];
@@ -273,6 +276,13 @@ public class SkillCalCore
         var cur = GetSkillCalData(id, level);
         var all = lastRow.AllCal * cur.AllCal;
         var cost = lastRow.SP + cur.SP;
+        if (lastRow.Cal > cur.Cal)
+        {
+            lastRow.Id = id;
+            lastRow.Block = data.Block;
+            lastRow.Level = level;
+            return lastRow;
+        }
         lastRow.List.Add(cur);
         
         var re=new SkillCalData()

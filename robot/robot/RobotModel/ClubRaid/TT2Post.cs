@@ -22,7 +22,8 @@ namespace testrobot
             InfoFiles,
             RaidCurrent,
             SetTarget,
-            Forum
+            Forum,
+            SoloRaid
         }
 
         public TT2Post()
@@ -54,6 +55,15 @@ namespace testrobot
                 OutError("GetForum");
             File.WriteAllText(tmpFile,s);
             return JsonConvert.DeserializeObject<MsgDataList>(s);
+        }
+        
+        public AllSoloRaidData SoloRaid(string tmpFile)
+        {
+            string s = Post(TT2Fun.SoloRaid);
+            if (s.Length < 200)
+                OutError("SoloRaid");
+            File.WriteAllText(tmpFile,s);
+            return JsonConvert.DeserializeObject<AllSoloRaidData>(s);
         }
 
         public bool SetCurrentTarget()
