@@ -727,7 +727,7 @@ public partial class RaidRobotModel
         else if (end == "骨")
             sing = -1;
         var t = i * sing;
-        if (t < -6)
+        if (t < -7)
             return "小助手不会叫你的";
         var info = new CallMeInfo()
         {
@@ -1086,10 +1086,16 @@ public partial class RaidRobotModel
 
     private async Task<SoraMessage> InputPlayerData(GroupMsgData data, string other)
     {
+        if (string.IsNullOrEmpty(other))
+        {
+            return "需要解析数据，发送解析数据需要带此命令开头\nwww.crecheng.top/PlayOutput.html";
+        }
         var pair= other.Split("/");
         Dictionary<string, string> dic = new Dictionary<string, string>();
         foreach (var s in pair)
         {
+            if(s.Length<=1)
+                continue;
             var ss = s.Split('-');
             dic.Add(ss[0], ss[1]);
         }
@@ -1124,7 +1130,10 @@ public partial class RaidRobotModel
 
         if (playerData == null)
         {
-            return "没有找到对应玩家";
+            string ret = "没有找到对应玩家";
+            if (!_club.HaveRaid)
+                ret += "\n当前没有突袭，请在打突袭时导入";
+            return ret;
         }
 
         int t = 0;
@@ -1133,6 +1142,10 @@ public partial class RaidRobotModel
             if (dic.ContainsKey(key))
             {
                 t+=Int32.Parse(dic[key]);
+            }
+            else
+            {
+                Console.WriteLine(key);
             }
         }
 
@@ -1149,7 +1162,7 @@ public partial class RaidRobotModel
             }
         }
 
-        return "更新成功";
+        return "更新成功，建议撤回";
 
         return SoraMessage.Null;
     }

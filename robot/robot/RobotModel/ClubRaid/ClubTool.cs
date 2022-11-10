@@ -74,39 +74,39 @@ namespace testrobot
         
         public static Dictionary<string, string> CardEName = new Dictionary<string, string>()
         {
-            {"WhipOfLightning","WhipOfLightning"},
-            {"FinisherAttack","VictoryMarch"},
-            {"TotemFairySkill","TotemofPower"},
-            {"PlagueAttack","ThrivingPlague"},
+            {"WhipofLightning","WhipOfLightning"},
+            {"VictoryMarch","FinisherAttack"},
+            {"TotemofPower","TotemFairySkill"},
+            {"ThrivingPlague","PlagueAttack"},
             {"TeamTactics","TeamTactics"},
-            {"InnerTruth","SoulFire"},
+            {"SoulFire","InnerTruth"},
             {"SkullBash","SkullBash"},
             {"RazorWind","RazorWind"},
-            {"Swarm","RavenousSwarm"},
-            {"MentalFocus","RancidGas"},
-            {"Disease","Radioactivity"},
-            {"Purify","PurifyingBlast"},
-            {"LimbBurst","PsychicChain"},
-            {"SuperheatMetal","PrismaticRift"},
+            {"RavenousSwarm","Swarm"},
+            {"RancidGas","MentalFocus"},
+            {"Radioactivity","Disease"},
+            {"PurifyingBlast","Purify"},
+            {"PsychicShackles","LimbBurst"},
+            {"PrismaticRift","SuperheatMetal"},
             {"MoonBeam","MoonBeam"},
-            {"RuneAttack","Maelstrom"},
-            {"ImpactAttack","InspiringForce"},
-            {"CrushingVoid","InsanityVoid"},
-            {"Shadow","GrimShadow"},
-            {"LimbSupport","GraspingVines"},
-            {"Fuse","FusionBomb"},
+            {"Maelstrom","RuneAttack"},
+            {"InspiringForce","ImpactAttack"},
+            {"InsanityVoid","CrushingVoid"},
+            {"GrimShadow","Shadow"},
+            {"GraspingVines","LimbSupport"},
+            {"FusionBomb","Fuse"},
             {"Fragmentize","Fragmentize"},
             {"FlakShot","FlakShot"},
-            {"DecayingAttack","DecayingStrike"},
-            {"ExecutionersAxe","CrushingInstinct"},
-            {"Haymaker","CosmicHaymaker"},
-            {"BurstCount","ClanshipBarrage"},
-            {"ChainLightning","ChainofVengeance"},
-            {"BurningAttack","BlazingInferno"},
-            {"BurstBoost","AncestralFavor"},
-            {"PoisonAttack","AcidDrench"},
-            {"SpinalTap","SkeletalSmash"},
-            {"RuinousRust","RuinousRain"},
+            {"DecayingStrike","DecayingAttack"},
+            {"CrushingInstinct","ExecutionersAxe"},
+            {"CosmicHaymaker","Haymaker"},
+            {"ClanshipBarrage","BurstCount"},
+            {"ChainofVengeance","ChainLightning"},
+            {"BlazingInferno","BurningAttack"},
+            {"AncestralFavor","BurstBoost"},
+            {"AcidDrench","PoisonAttack"},
+            {"SkeletalSmash","SpinalTap"},
+            {"RuinousRain","RuinousRust"},
         };
 
         public static Dictionary<string, string> CardDmageType = new Dictionary<string, string>()
@@ -424,6 +424,7 @@ namespace testrobot
 
         public static void DrawPlayerCard(string player, Dictionary<string,int> card,Dictionary<string,string> dic, string path,string imgPath)
         {
+            card = new Dictionary<string, int>(card);
             foreach (var (k,cn) in CardName)
             {
                 if(!card.ContainsKey(k))
@@ -435,7 +436,7 @@ namespace testrobot
             int cardStartY = 0;
             if (dic != null)
                 cardStartY = (dic.Count + 1) * 32-50;
-            card = new Dictionary<string, int>(card);
+
 
             Bitmap bitmap = new Bitmap(32 * rowCount, cardStartY+(len + 1) * 64);
             Graphics g=Graphics.FromImage(bitmap);
@@ -619,12 +620,21 @@ namespace testrobot
                 if (value.Count > max)
                     max = value.Count;
                 int c = 0;
+                List<string> rl = new List<string>();
                 foreach (var (item, level) in value)
                 {
                     cardName.Add(item);
                     c += level;
+                    if (level == -1)
+                    {
+                        rl.Add(item);
+                    }
                 }
 
+                rl.ForEach((k) =>
+                {
+                    value.Remove(k);
+                });
                 num.Add(key, c);
             }
 
