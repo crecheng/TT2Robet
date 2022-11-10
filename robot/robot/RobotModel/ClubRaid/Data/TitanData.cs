@@ -47,6 +47,15 @@ namespace testrobot
                 return ((int) part_id % 2 == 1) && current_hp > 0;
             }
 
+            public RaidCal.CalPart GetCalPart() 
+                => new RaidCal.CalPart
+            {
+                current_hp = current_hp,
+                enchanted = enchanted,
+                total_hp = total_hp,
+                part_id = part_id
+            };
+
             public override string ToString()
             {
                 return $"当前血量: {current_hp}\n" +
@@ -328,6 +337,7 @@ namespace testrobot
             }
             return "";
         }
+
 
         public override string ToString()
         {

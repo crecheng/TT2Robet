@@ -1154,6 +1154,136 @@ public partial class RaidRobotModel
         return SoraMessage.Null;
     }
 
+    private Dictionary<string, int> partCName = new Dictionary<string, int>()
+    {
+        {"头", 0},
+        {"胸", 1},
+        {"左肩", 2},
+        {"右肩", 3},
+        {"左腿", 4},
+        {"右腿", 5},
+        {"左手", 6},
+        {"右手", 7},
+    };
+    private async Task<SoraMessage> RaidCardCal(GroupMsgData data, string other)
+    {
+        if (!_data.QQLink.ContainsKey(data.Sender))
+            return "没有你的卡片数据";
+        if (string.IsNullOrEmpty(other))
+            return "请正确输入,例如\n突袭模拟 胸 月光 风刃 风刃\n突袭模拟 胸肉 月光 风刃 风刃";
+
+        var args = other.Split(' ');
+        if(args.Length<=1)
+            return "请正确输入,例如\n突袭模拟 胸 月光 风刃 风刃\n突袭模拟 胸肉 月光 风刃 风刃";
+/*                   case PartName.BodyHead:return "头部蓝条";
+                   case PartName.ArmorHead:return "头部盔甲";
+                   case PartName.BodyChestUpper:return "胸蓝条";
+                   case PartName.ArmorChestUpper:return "胸盔甲";
+                   case PartName.BodyArmUpperRight:return "左肩蓝条";
+                   case PartName.ArmorArmUpperRight:return "左肩盔甲";
+                   case PartName.BodyArmUpperLeft:return "右肩蓝条";
+                   case PartName.ArmorArmUpperLeft:return "右肩盔甲";
+                   case PartName.BodyLegUpperRight:return "左腿蓝条";
+                   case PartName.ArmorLegUpperRight:return "左腿盔甲";
+                   case PartName.BodyLegUpperLeft:return "右腿蓝条";
+                   case PartName.ArmorLegUpperLeft:return "右腿盔甲";
+                   case PartName.BodyHandRight:return "左手蓝条";
+                   case PartName.ArmorHandRight:return "左手盔甲";
+                   case PartName.BodyHandLeft:return "右手蓝条";
+                   case PartName.ArmorHandLeft:return "右手盔甲";*/
+        int p = -1;
+        int pa = -1;
+        if (partCName.ContainsKey(args[0]))
+            p = partCName[args[0]];
+        
+        if (!_club.HaveRaid && p != -1)
+            return "当前没有突袭，请输入具体部位，如头蓝条，头白条";
+        if (p == -1)
+        {
+            foreach (var (name,i) in partCName)
+            {
+                if (args[0].StartsWith(name))
+                    p = i;
+            }
+
+            if (args[0].EndsWith("蓝条"))
+                pa = 0;
+            else if (args[0].EndsWith("白条"))
+                pa = 1;
+            if (pa == -1 || p == -1)
+                return "请输入正确部位，如头蓝条，头白条";
+        }
+
+        List<RaidCal.CalPart> parts = new List<RaidCal.CalPart>();
+        RaidCal.CalPart target = null;
+        if (pa == -1 && _club.HaveRaid)
+        {
+            var titan= _club.GetCurrentTitanData();
+            RaidCal.CalPart partL = null;
+            RaidCal.CalPart partB = null;
+            titan.parts.ForEach(i =>
+            {
+                var c = i.GetCalPart();
+                if ((int) i.part_id == p * 2)
+                    partL = c;
+                if ((int) i.part_id == p * 2 + 1)
+                    partB = c;
+                parts.Add(c);
+            });
+
+            if (partB.current_hp > 0)
+            {
+                target = partB;
+                pa = 1;
+            }
+            else if(partL.current_hp<=0)
+            {
+                return "当前部分为骨架，请选其他部位\n或选择正确部位，如头蓝条，头白条";
+            }
+            else
+            {
+                target = partL;
+                pa = 0;
+            }
+        }
+        string s = string.Empty;
+        var player = _data.Player[_data.QQLink[data.Sender]];
+        int partId = p * 2 + pa;
+        Dictionary<string, int> card = new Dictionary<string, int>();
+        for (var i = 1; i < Math.Min(args.Length,4) ; i++)
+        {
+            var c = args[i];
+            var id = ClubTool.NameToIDCard(c);
+            if (string.IsNullOrEmpty(id))
+                return "没找到对于简称，查看简称可以命令：卡名字";
+
+            if (!player.Card.ContainsKey(id))
+                return "你还没有对应卡的数据，可以使用导入个人数据导入";
+            card.Add(id,player.Card[id]);
+            s += c + ":" + card[id]+"\n";
+        }
+        RaidCal cal = new RaidCal();
+        cal.TargetPart = target;
+        RaidCal.RaidAdd add = new RaidCal.RaidAdd();
+        
+        double all = 0;
+        int count = 10;
+        double max = Double.MinValue;
+        double min =Double.MaxValue;
+        for (int i = 0; i < count; i++)
+        {
+            var d = cal.Cal(card, player.RaidLevel, DataManage, parts, add);
+            if (d > max)
+                max = d;
+            if (d < min)
+                min = d;
+            all += d;
+        }
+
+        s += $"模拟{count}次\n最高:{max.ShowNum()}\n最低:{min.ShowNum()}\n平均:{(all / count).ShowNum()}";
+        return s;
+        await Task.CompletedTask;
+    }
 
 
     #endregion
