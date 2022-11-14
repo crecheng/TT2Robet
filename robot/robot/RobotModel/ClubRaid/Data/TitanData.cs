@@ -47,8 +47,8 @@ namespace testrobot
                 return ((int) part_id % 2 == 1) && current_hp > 0;
             }
 
-            public RaidCal.CalPart GetCalPart() 
-                => new RaidCal.CalPart
+            public CalPart GetCalPart() 
+                => new CalPart
             {
                 current_hp = current_hp,
                 enchanted = enchanted,

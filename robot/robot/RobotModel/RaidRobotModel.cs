@@ -620,8 +620,16 @@ public partial class RaidRobotModel : RobotModelBase
         _post.Tt2Post = _config;
         _data = Load<RaidData>(DataFile);
         _club = LoadCanBeNull<ClubData>("RaidCurrent.json");
-        if(_club!=null)
-            _club.Init();
+        try
+        {
+            if(_club!=null)
+                _club.Init();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+
         InitStatic();
         RegisterFun();
         CheckAtkList();
@@ -694,7 +702,7 @@ public partial class RaidRobotModel : RobotModelBase
             { "叫我", CallMeWhile },
             { "个突", ShowSoloRaid },
             { "突袭模拟", RaidCardCal },
-            { "导入数据", InputPlayerData },
+            { "导入个人数据", InputPlayerData },
             { "查询攻击时间", GetNearAtkInfo },
             { "查询攻击卡片", GetAtkInfoByCard },
             { "查询血量变动", LookLastHPChange },

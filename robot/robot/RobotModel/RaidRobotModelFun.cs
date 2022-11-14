@@ -1178,32 +1178,23 @@ public partial class RaidRobotModel
         {"左手", 6},
         {"右手", 7},
     };
+
+    private static List<float> LoyaltyLevel = new List<float>()
+    {
+        1, 1.1f, 1.14f, 1.16f, 1.18f, 1.2f, 1.22f, 1.24f, 1.26f, 1.28f, 1.3f, 1.32f, 1.34f, 1.34f
+    };
     private async Task<SoraMessage> RaidCardCal(GroupMsgData data, string other)
     {
         if (!_data.QQLink.ContainsKey(data.Sender))
             return "没有你的卡片数据";
         if (string.IsNullOrEmpty(other))
-            return "请正确输入,例如\n突袭模拟 胸 月光 风刃 风刃\n突袭模拟 胸肉 月光 风刃 风刃";
+            return "请正确输入,例如\n突袭模拟 胸 月光 风刃 风刃\n突袭模拟 胸肉 月光 灵魂 风刃";
 
+        if (other.StartsWith(' '))
+            other = other.Substring(1);
         var args = other.Split(' ');
         if(args.Length<=1)
-            return "请正确输入,例如\n突袭模拟 胸 月光 风刃 风刃\n突袭模拟 胸肉 月光 风刃 风刃";
-/*                   case PartName.BodyHead:return "头部蓝条";
-                   case PartName.ArmorHead:return "头部盔甲";
-                   case PartName.BodyChestUpper:return "胸蓝条";
-                   case PartName.ArmorChestUpper:return "胸盔甲";
-                   case PartName.BodyArmUpperRight:return "左肩蓝条";
-                   case PartName.ArmorArmUpperRight:return "左肩盔甲";
-                   case PartName.BodyArmUpperLeft:return "右肩蓝条";
-                   case PartName.ArmorArmUpperLeft:return "右肩盔甲";
-                   case PartName.BodyLegUpperRight:return "左腿蓝条";
-                   case PartName.ArmorLegUpperRight:return "左腿盔甲";
-                   case PartName.BodyLegUpperLeft:return "右腿蓝条";
-                   case PartName.ArmorLegUpperLeft:return "右腿盔甲";
-                   case PartName.BodyHandRight:return "左手蓝条";
-                   case PartName.ArmorHandRight:return "左手盔甲";
-                   case PartName.BodyHandLeft:return "右手蓝条";
-                   case PartName.ArmorHandLeft:return "右手盔甲";*/
+            return "请正确输入,例如\n突袭模拟 胸 月光 风刃 风刃\n突袭模拟 胸肉 月光 灵魂 风刃";
         int p = -1;
         int pa = -1;
         if (partCName.ContainsKey(args[0]))
@@ -1227,13 +1218,13 @@ public partial class RaidRobotModel
                 return "请输入正确部位，如头蓝条，头白条";
         }
 
-        List<RaidCal.CalPart> parts = new List<RaidCal.CalPart>();
-        RaidCal.CalPart target = null;
+        List<CalPart> parts = new List<CalPart>();
+        CalPart target = null;
         if (pa == -1 && _club.HaveRaid)
         {
             var titan= _club.GetCurrentTitanData();
-            RaidCal.CalPart partL = null;
-            RaidCal.CalPart partB = null;
+            CalPart partL = null;
+            CalPart partB = null;
             titan.parts.ForEach(i =>
             {
                 var c = i.GetCalPart();
@@ -1259,8 +1250,9 @@ public partial class RaidRobotModel
                 pa = 0;
             }
         }
-        string s = string.Empty;
+        
         var player = _data.Player[_data.QQLink[data.Sender]];
+        string s = "突等："+player.RaidLevel+"\n";
         int partId = p * 2 + pa;
         Dictionary<string, int> card = new Dictionary<string, int>();
         for (var i = 1; i < Math.Min(args.Length,4) ; i++)
@@ -1272,30 +1264,70 @@ public partial class RaidRobotModel
 
             if (!player.Card.ContainsKey(id))
                 return "你还没有对应卡的数据，可以使用导入个人数据导入";
+            if(card.ContainsKey(id))
+                return SoraMessage.Null;
             card.Add(id,player.Card[id]);
             s += c + ":" + card[id]+"\n";
         }
         RaidCal cal = new RaidCal();
+        if (target==null)
+        {
+            target = new CalPart()
+            {
+                part_id = (TitanData.PartName)(p * 2 + pa)
+            };
+        }
         cal.TargetPart = target;
         RaidCal.RaidAdd add = new RaidCal.RaidAdd();
+
+        add.AllAdd *= LoyaltyLevel[player.SourceData.loyalty_level];
+        double td = 0;
+        if (_club.HaveRaid)
+        {
+            var raid = _club.clan_raid;
+            if (raid.boost_bonus != null)
+            {
+                if (raid.boost_bonus.BonusType == "AllRaidDamage")
+                    td += raid.boost_bonus.BonusAmount;
+            }
+
+            if (raid.special_card_info != null && raid.special_card_info.Count > 0)
+            {
+                raid.special_card_info.ForEach(i =>
+                {
+                    if (i.BonusType == "TeamTacticsClanMoraleBoost")
+                        td += i.BonusAmount;
+                });
+            }
+
+            add.AllAdd *= (float)(1 + td);
+        }
         
         double all = 0;
-        int count = 10;
-        double max = Double.MinValue;
-        double min =Double.MaxValue;
+        int count = 100;
+        // double max = Double.MinValue;
+        // double min =Double.MaxValue;
+        // for (int i = 0; i < count; i++)
+        // {
+        //     var d = cal.Cal(card, player.RaidLevel, DataManage, parts, add);
+        //     if (d > max)
+        //         max = d;
+        //     if (d < min)
+        //         min = d;
+        //     all += d;
+        // }
+        //
+        // s += $"模拟{count}次\n最高:{max.ShowNum()}\n最低:{min.ShowNum()}\n平均:{(all / count).ShowNum()}";
+        List<RaidDmgData> list = new List<RaidDmgData>();
         for (int i = 0; i < count; i++)
         {
             var d = cal.Cal(card, player.RaidLevel, DataManage, parts, add);
-            if (d > max)
-                max = d;
-            if (d < min)
-                min = d;
-            all += d;
+            list.Add(d);
         }
-
-        s += $"模拟{count}次\n最高:{max.ShowNum()}\n最低:{min.ShowNum()}\n平均:{(all / count).ShowNum()}";
-        return s;
-        await Task.CompletedTask;
+        
+        var f = GetModelDir() + "RaidCardCal.png";
+        RaidDmgDataTool.DrawDmgDataList(list,player.SourceData,(float)td,f);
+        return Tool.Image(f);
     }
 
 

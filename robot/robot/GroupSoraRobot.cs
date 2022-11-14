@@ -30,7 +30,7 @@ public class GroupSoraRobot : GroupRobot
         if (!success)
         {
             Work = false;
-            Console.WriteLine($"Init {this.GetType().Name} fail !!!!!");
+            Console.WriteLine($"Init {ID}-{this.GetType().Name} fail !!!!!");
         }
     }
     
