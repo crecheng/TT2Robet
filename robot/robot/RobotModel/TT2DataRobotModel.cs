@@ -58,6 +58,7 @@ public class TT2DataRobotModel: RobotModelBase
             _argFun = new Dictionary<string, Func<GroupMsgData, Task<SoraMessage>>>()
             {
                 { "卡片数据", GetMyCard },
+                { "卡名字", GetCardName },
             };
             _argLenFun = new Dictionary<string, Func<GroupMsgData, string, Task<SoraMessage>>>()
             {
@@ -85,6 +86,11 @@ public class TT2DataRobotModel: RobotModelBase
         var f = DataPath + $"GetMyCard{(++_drawCount) / 20}.png";
         ClubTool.DrawPlayerCard(p.Name, p.Card, dic, f, RaidRobotModel.Card32Path);
         return Tool.Image(f);
+    }
+
+    private async Task<SoraMessage> GetCardName(GroupMsgData data)
+    {
+        return Tool.Image(DataPath + "ShowCardName.png");
     }
 
     private async Task<SoraMessage> QQLinkGame(GroupMsgData data, string code)
@@ -213,6 +219,95 @@ public class TT2DataRobotModel: RobotModelBase
         ClubTool.DrawInfo(dic, f, 800);
         return Tool.Image(f);
     }
+    
+    private Dictionary<string, int> partCName = new Dictionary<string, int>()
+    {
+        {"头", 0},
+        {"胸", 1},
+        {"左肩", 2},
+        {"右肩", 3},
+        {"左腿", 4},
+        {"右腿", 5},
+        {"左手", 6},
+        {"右手", 7},
+    };
+    private async Task<SoraMessage> RaidCardCal(GroupMsgData data, string other)
+    {
+        if (string.IsNullOrEmpty(other))
+            return "格式不对哦，格式应该是这样的\n突袭模拟 200 胸白条 月光10 风刃10 风刃10\n突袭模拟 200 胸蓝条 月光10 灵魂10 风刃10";
+
+        if (other.StartsWith(' '))
+            other = other.Substring(1);
+        var args = other.Split(' ');
+        if(args.Length<=1)
+            return "格式不对哦，格式应该是这样的\n突袭模拟 200 胸白条 月光10 风刃10 风刃10\n突袭模拟 200 胸蓝条 月光10 灵魂10 风刃10";
+        int p = -1;
+        int pa = -1;
+        if (partCName.ContainsKey(args[0]))
+            p = partCName[args[0]];
+        
+        if (p == -1)
+        {
+            foreach (var (name,i) in partCName)
+            {
+                if (args[0].StartsWith(name))
+                    p = i;
+            }
+
+            if (args[0].EndsWith("蓝条"))
+                pa = 0;
+            else if (args[0].EndsWith("白条"))
+                pa = 1;
+            if (pa == -1 || p == -1)
+                return "没有这个部位哦，如头蓝条，头白条";
+        }
+
+        if (!int.TryParse(args[1], out int raidLevel) || raidLevel<1)
+            return "你还告诉小助手突袭等级呐";
+
+        List<CalPart> parts = new List<CalPart>();
+        Dictionary<string, int> card = new Dictionary<string, int>();
+        for (var i = 2; i < Math.Min(args.Length,5) ; i++)
+        {
+            if(args[i].Length<2)
+                return "没找到对于简称，查看简称可以命令：卡名字";
+            var c = args[i].Substring(0,2);
+            var id = ClubTool.NameToIDCard(c);
+            if (string.IsNullOrEmpty(id))
+                return "没找到对于简称，查看简称可以命令：卡名字";
+
+            if (!int.TryParse(args[i].Substring(2),out int level)|| level>60|| level<=0)
+                return "你还告诉小助手卡等级呐";
+            if(card.ContainsKey(id))
+                return SoraMessage.Null;
+            card.Add(id,level);
+        }
+        RaidCal cal = new RaidCal();
+
+        
+        CalPart target = new CalPart()
+        {
+            part_id = (TitanData.PartName)(p * 2 + pa)
+        };
+        
+        parts.Add(target);
+        cal.TargetPart = target;
+        RaidCal.RaidAdd add = new RaidCal.RaidAdd();
+        
+        double all = 0;
+        int count = 100;
+        List<RaidDmgData> list = new List<RaidDmgData>();
+        for (int i = 0; i < count; i++)
+        {
+            var d = cal.Cal(card, raidLevel, RaidRobotModel.DataManage, parts, add);
+            list.Add(d);
+        }
+        
+        var f = GetModelDir() + $"RaidCardCal{(++_drawCount) / 20}.png";
+        RaidDmgDataTool.DrawDmgDataList(list,f);
+        return Tool.Image(f);
+    }
+
     
     private RaidRobotModel.PlayerData SearchPlayer(string code)
     {

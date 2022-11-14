@@ -1326,7 +1326,7 @@ public partial class RaidRobotModel
         }
         
         var f = GetModelDir() + "RaidCardCal.png";
-        RaidDmgDataTool.DrawDmgDataList(list,player.SourceData,(float)td,f);
+        RaidDmgDataTool.DrawDmgDataList(list,f,player.SourceData,(float)td);
         return Tool.Image(f);
     }
 

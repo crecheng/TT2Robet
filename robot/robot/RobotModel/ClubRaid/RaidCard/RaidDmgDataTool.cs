@@ -47,7 +47,7 @@ public static class RaidDmgDataTool
         }
     }
 
-    public static void DrawDmgDataList(List<RaidDmgData> list,PlayerData play,float add, string path,bool onlyHighLow=true)
+    public static void DrawDmgDataList(List<RaidDmgData> list, string path,PlayerData play=null,float add=0,bool onlyHighLow=true)
     {
         //400*200
         int top = 0;
