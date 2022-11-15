@@ -66,6 +66,7 @@ public class TT2DataRobotModel: RobotModelBase
                 { "解绑", QQUnLinkGame },
                 { "切换", SwitchLinkGame },
                 { "查看卡", ShowCardInfo },
+                { "突袭模拟", RaidCardCal },
             };
         }
     }
@@ -250,19 +251,19 @@ public class TT2DataRobotModel: RobotModelBase
         {
             foreach (var (name,i) in partCName)
             {
-                if (args[0].StartsWith(name))
+                if (args[1].StartsWith(name))
                     p = i;
             }
 
-            if (args[0].EndsWith("蓝条"))
+            if (args[1].EndsWith("蓝条"))
                 pa = 0;
-            else if (args[0].EndsWith("白条"))
+            else if (args[1].EndsWith("白条"))
                 pa = 1;
             if (pa == -1 || p == -1)
                 return "没有这个部位哦，如头蓝条，头白条";
         }
 
-        if (!int.TryParse(args[1], out int raidLevel) || raidLevel<1)
+        if (!int.TryParse(args[0], out int raidLevel) || raidLevel<1)
             return "你还告诉小助手突袭等级呐";
 
         List<CalPart> parts = new List<CalPart>();
@@ -303,7 +304,7 @@ public class TT2DataRobotModel: RobotModelBase
             list.Add(d);
         }
         
-        var f = GetModelDir() + $"RaidCardCal{(++_drawCount) / 20}.png";
+        var f=DataPath + $"RaidCardCal{(++_drawCount) / 20}.png";
         RaidDmgDataTool.DrawDmgDataList(list,f);
         return Tool.Image(f);
     }

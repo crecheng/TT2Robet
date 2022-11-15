@@ -66,6 +66,7 @@ public partial class RaidCal
         var d = data.BonusAValue[level - 1];
         int c = (int)data.BonusCValue;
         d+= data.BonusBValue[level - 1] * Math.Min(c, calData.Cal.currentBlue);
+        calData.CardAdd.AllAdd+=d;
         return d;
     }
 
