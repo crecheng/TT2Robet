@@ -1218,42 +1218,33 @@ public partial class RaidRobotModel
                 return "请输入正确部位，如头蓝条，头白条";
         }
 
-        List<CalPart> parts = new List<CalPart>();
+        List<CalPart> parts = new List<CalPart>(8);
         CalPart target = null;
         if (pa == -1 && _club.HaveRaid)
         {
             var titan= _club.GetCurrentTitanData();
-            CalPart partL = null;
-            CalPart partB = null;
+            CalPart part = null;
             titan.parts.ForEach(i =>
             {
-                var c = i.GetCalPart();
-                if ((int) i.part_id == p * 2)
-                    partL = c;
-                if ((int) i.part_id == p * 2 + 1)
-                    partB = c;
-                parts.Add(c);
+                int pd = (int) i.part_id;
+                int index = pd / 2;
+                if (parts[index] == null)
+                    parts[index] = new CalPart(i);
+                else
+                    parts[index].Add(i);
+                if (index==p)
+                    part = parts[index];
+
             });
 
-            if (partB.current_hp > 0)
-            {
-                target = partB;
-                pa = 1;
-            }
-            else if(partL.current_hp<=0)
-            {
-                return "当前部分为骨架，请选其他部位\n或选择正确部位，如头蓝条，头白条";
-            }
+            if (part.CurrentHp > 0)
+                target = part;
             else
-            {
-                target = partL;
-                pa = 0;
-            }
+                return "当前部分为骨架，请选其他部位\n或选择正确部位，如头蓝条，头白条";
         }
         
         var player = _data.Player[_data.QQLink[data.Sender]];
         string s = "突等："+player.RaidLevel+"\n";
-        int partId = p * 2 + pa;
         Dictionary<string, int> card = new Dictionary<string, int>();
         for (var i = 1; i < Math.Min(args.Length,4) ; i++)
         {
@@ -1272,10 +1263,7 @@ public partial class RaidRobotModel
         RaidCal cal = new RaidCal();
         if (target==null)
         {
-            target = new CalPart()
-            {
-                part_id = (TitanData.PartName)(p * 2 + pa)
-            };
+            target = new CalPart(p, pa);
         }
         cal.TargetPart = target;
         RaidCal.RaidAdd add = new RaidCal.RaidAdd();

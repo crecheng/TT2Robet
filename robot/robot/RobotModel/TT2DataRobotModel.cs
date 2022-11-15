@@ -285,12 +285,9 @@ public class TT2DataRobotModel: RobotModelBase
         }
         RaidCal cal = new RaidCal();
 
-        
-        CalPart target = new CalPart()
-        {
-            part_id = (TitanData.PartName)(p * 2 + pa)
-        };
-        
+
+        CalPart target = new CalPart(p, pa);
+
         parts.Add(target);
         cal.TargetPart = target;
         RaidCal.RaidAdd add = new RaidCal.RaidAdd();

@@ -47,15 +47,6 @@ namespace testrobot
                 return ((int) part_id % 2 == 1) && current_hp > 0;
             }
 
-            public CalPart GetCalPart() 
-                => new CalPart
-            {
-                current_hp = current_hp,
-                enchanted = enchanted,
-                total_hp = total_hp,
-                part_id = part_id
-            };
-
             public override string ToString()
             {
                 return $"当前血量: {current_hp}\n" +

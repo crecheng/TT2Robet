@@ -290,7 +290,7 @@ public partial class RaidCal
 
     public double GetTapDmg(int baseDmg, RaidAdd raidAdd, CardAdd cardAdd,CalPart part)
     {
-        double hAdd = ((int) part.part_id % 2 == 1 ? raidAdd.ArmorAdd : raidAdd.BodyAdd);
+        double hAdd = part.CurrentType == 2 ? raidAdd.ArmorAdd : raidAdd.BodyAdd;
         return baseDmg * (1+part.partAdd) * raidAdd.AllAdd *hAdd * part.GetCardAdd(cardAdd);
     }
 
@@ -313,19 +313,10 @@ public partial class RaidCal
         
         foreach (var part in parts)
         {
-            int i = (int)part.part_id;
-            if (part.current_hp > 0)
-            {
-                //肉+4，甲+8
-                partCalDic[i / 2] += (i % 2 == 0) ? 4 : 8;
-            }
-        }
-
-        foreach (var (key,value) in partCalDic)
-        {
-            if (value >= 8)
+            int i = part.CurrentType;
+            if(i==2)
                 currentWhite++;
-            else if (value >= 4)
+            else if(i==1)
                 currentBlue++;
             else
                 currentBone++;
@@ -359,15 +350,15 @@ public partial class RaidCal
                 case "Burst": d *= BurstAdd; break;
                 case "Afflicted": d *= AfflictedAdd; break;
             }
-            if ((int)part.part_id % 2 == 1)
+            if (part.CurrentType == 2)
                 d *= ArmorAdd;
             else
                 d *= BodyAdd;
-            if (part.part_id == TitanData.PartName.ArmorHead || part.part_id == TitanData.PartName.BodyHead)
+            if (part.PartId == CalPart.PartName.Head )
             {
                 d *= HeadAdd;
             }
-            else if (part.part_id == TitanData.PartName.ArmorChestUpper || part.part_id == TitanData.PartName.BodyChestUpper)
+            else if (part.PartId == CalPart.PartName.ChestUpper )
             {
                 d *= ChestAdd;
             }
@@ -392,46 +383,37 @@ public partial class RaidCal
         public float HeadAdd ;
         public float ChestAdd ;
         public float LegAdd ;
-
-        private float _burstAdd ;
-        private float _burstChanceAdd =1;
-        private float _afflictedAdd ;
-        private float _afflictedChanceAdd = 1;
-        private float _allAdd ;
-        private float _bodyAdd ;
-        private float _armorAdd ;
-        private float _headAdd ;
-        private float _chestAdd ;
-        private float _legAdd ;
+        public CardAdd save ;
         public void Save()
         {
-            _burstAdd =BurstAdd ;
-            _burstChanceAdd =BurstChanceAdd ;
-            _afflictedAdd =AfflictedAdd ;
-            _afflictedChanceAdd =AfflictedChanceAdd ;
-            _allAdd =AllAdd ;
-            _bodyAdd =BodyAdd ;
-            _armorAdd =ArmorAdd ;
-            _headAdd =HeadAdd ;
-            _chestAdd =ChestAdd ;
-            _legAdd =LegAdd ;
+            save ??= new CardAdd();
+            save.BurstAdd = BurstAdd;
+            save.BurstChanceAdd = BurstChanceAdd;
+            save.AfflictedAdd = AfflictedAdd;
+            save.AfflictedChanceAdd = AfflictedChanceAdd;
+            save.AllAdd = AllAdd;
+            save.BodyAdd = BodyAdd;
+            save.ArmorAdd = ArmorAdd;
+            save.HeadAdd = HeadAdd;
+            save.ChestAdd = ChestAdd;
+            save.LegAdd = LegAdd;
         }
 
         public void Load()
         {
-            BurstAdd =_burstAdd ;
-            BurstChanceAdd =_burstChanceAdd ;
-            AfflictedAdd =_afflictedAdd ;
-            AfflictedChanceAdd =_afflictedChanceAdd ;
-            AllAdd =_allAdd ;
-            BodyAdd =_bodyAdd ;
-            ArmorAdd =_armorAdd ;
-            HeadAdd =_headAdd ;
-            ChestAdd =_chestAdd ;
-            LegAdd =_legAdd ;
+            BurstAdd = save.BurstAdd;
+            BurstChanceAdd = save.BurstChanceAdd;
+            AfflictedAdd = save.AfflictedAdd;
+            AfflictedChanceAdd = save.AfflictedChanceAdd;
+            AllAdd = save.AllAdd;
+            BodyAdd = save.BodyAdd;
+            ArmorAdd = save.ArmorAdd;
+            HeadAdd = save.HeadAdd;
+            ChestAdd = save.ChestAdd;
+            LegAdd = save.LegAdd;
         }
 
-        public void Reset()
+        public void Reset(bool flag=false)
         {
             BurstAdd = 0;
             BurstChanceAdd = 1;
@@ -443,16 +425,8 @@ public partial class RaidCal
             HeadAdd = 0;
             ChestAdd = 0;
             LegAdd = 0;
-            _burstAdd = 0;
-            _burstChanceAdd = 1;
-            _afflictedAdd = 0;
-            _afflictedChanceAdd = 1;
-            _allAdd = 0;
-            _bodyAdd = 0;
-            _armorAdd = 0;
-            _headAdd = 0;
-            _chestAdd = 0;
-            _legAdd = 0;
+            if(flag)
+                save.Reset();
         }
     }
     

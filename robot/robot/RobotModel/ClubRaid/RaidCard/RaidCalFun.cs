@@ -139,9 +139,9 @@ public partial class RaidCal
         var d = BrustBese(data, level, calData);
         
         var part = calData.CurrentPart;
-        if (part.part_id == TitanData.PartName.ArmorChestUpper || part.part_id == TitanData.PartName.BodyChestUpper)
+        if (part.PartId == CalPart.PartName.ChestUpper)
             d *= data.BonusCValue;
-        part.current_hp -= d;
+        part.CurrentHp -= d;
         //Console.WriteLine("MoonBeam-"+d);
         return d;
     }
@@ -172,11 +172,11 @@ public partial class RaidCal
         var d = BrustBese(data, level, calData);
         
         var part = calData.CurrentPart;
-        if ((int) part.part_id % 2 == 1)
+        if (part.CurrentType == 2)
             d *= data.BonusCValue;
         if (part.enchanted)
             d *= data.BonusBValue[level-1];
-        part.current_hp -= d;
+        part.CurrentHp -= d;
        // Console.WriteLine("LimbBurst-" + d);
         return d;
     }
@@ -198,7 +198,7 @@ public partial class RaidCal
         var part = calData.CurrentPart;
         calData.Cal.otherData["Haymaker"] = 0;
         var d = BrustBese(data, level, calData);
-        part.current_hp -= d;
+        part.CurrentHp -= d;
         //Console.WriteLine("Haymaker-" + d);
         return d;
     }
@@ -209,12 +209,9 @@ public partial class RaidCal
             return 0;
         var d = BrustBese(data, level, calData);
         var part = calData.CurrentPart;
-        if (part.part_id != TitanData.PartName.ArmorChestUpper &&
-            part.part_id != TitanData.PartName.BodyChestUpper &&
-            part.part_id != TitanData.PartName.ArmorHead &&
-            part.part_id != TitanData.PartName.BodyHead)
+        if (part.PartId != CalPart.PartName.ChestUpper && part.PartId != CalPart.PartName.Head)
             d *= data.BonusCValue;
-        part.current_hp -= d;
+        part.CurrentHp -= d;
         //Console.WriteLine("LimbBurst-" + d);
         return d;
     }
@@ -242,9 +239,9 @@ public partial class RaidCal
         var d = BrustBese(data, level, calData);
         
         var part = calData.CurrentPart;
-        if ((int) part.part_id % 2 == 0)
+        if (part.CurrentType == 1)
             d *= data.BonusCValue;
-        part.current_hp -= d;
+        part.CurrentHp -= d;
         //Console.WriteLine("RazorWind-"+d);
         return d;
     }
@@ -257,9 +254,9 @@ public partial class RaidCal
         var d = BrustBese(data, level, calData);
         
         var part = calData.CurrentPart;
-        if (part.part_id==TitanData.PartName.ArmorHead || part.part_id==TitanData.PartName.BodyHead)
+        if (part.PartId==CalPart.PartName.Head )
             d *= data.BonusCValue;
-        part.current_hp -= d;
+        part.CurrentHp -= d;
         //Console.WriteLine("SkullBash-"+d);
         return d;
     }
