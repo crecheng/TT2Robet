@@ -1037,6 +1037,7 @@ public partial class RaidRobotModel
             _config.vendor = content["X-Tt2-Vendor-Id".ToLower()];
             _config.token = content["Authorization".ToLower()].Split(' ')[1];
             _config.stage = int.Parse(content["X-Tt2-Current-Stage".ToLower()]);
+            _config.SupplyQQ = data.Sender;
             Save("config.json",_config.Save());
             
             return "更新成功"+urlHead+"\n你可以撤回了";

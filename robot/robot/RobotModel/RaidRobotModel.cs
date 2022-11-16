@@ -424,7 +424,10 @@ public partial class RaidRobotModel : RobotModelBase
             if (_data.FailCount > 5)
             {
                 _data.isRefresh = false;
-                await SendGroupMsg("账号数据失效，请重新设置！！！");
+                SoraMessage send = new SoraMessage("账号数据失效，请重新设置！！！\n");
+                if(_config.SupplyQQ!=0)
+                    send.Add(SoraSegment.At(_config.SupplyQQ));
+                await SendGroupMsg(send);
                 await OutException(e);
             }
 

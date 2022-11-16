@@ -203,6 +203,7 @@ namespace testrobot
         public int stage ;
         public Dictionary<TT2Post.TT2Fun, TT2Post.SendInfo> key;
         public string Version = "5.22.0";
+        public long SupplyQQ;
 
 
         public string GetEasyData()

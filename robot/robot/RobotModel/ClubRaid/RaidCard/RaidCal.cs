@@ -145,8 +145,8 @@ public partial class RaidCal
             {"RuneAttack",RuneAttack},
             {"Shadow",Shadow},
             {"Swarm",Swarm},
-            //{"CelestialStatic",CelestialStatic},
-            //{"MirrorForce",MirrorForce},
+            {"CelestialStatic",CelestialStatic},
+            {"MirrorForce",MirrorForce},
         };
 
     private static Dictionary<string, Func<CardData, int, RaidCalData,float>> SupportFun =
