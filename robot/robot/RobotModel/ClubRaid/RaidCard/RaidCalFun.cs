@@ -218,7 +218,10 @@ public partial class RaidCal
 
     public static double MirrorForce(CardData data, int level,RaidCalData calData)
     {
-        return 0;
+        if (!Probability(data.Chance*calData.RaidAdd.BurstChanceAdd*calData.CardAdd.BurstChanceAdd))
+            return 0;
+        var d = BrustBese(data, level, calData);
+        return d;
     }
     
     public static double Purify(CardData data, int level,RaidCalData calData)
@@ -266,6 +269,11 @@ public partial class RaidCal
         return 0;
     }
     
+    public static double CelestialStatic(CardData data, int level,RaidCalData calData)
+    {
+        return 0;
+    }
+    
 
     #endregion
 
@@ -275,7 +283,7 @@ public partial class RaidCal
         CardData data, int level,
         RaidCalData calData,
         Func<CalPart, double,double> onCal=null,
-        Action<CalPart> onAddDot=null,
+        Action<CalPart,bool> onAddDot=null,
         Action<CalPart> onRemove=null,
         float expandAfflictedChanceAdd=1f)
     {
@@ -286,9 +294,10 @@ public partial class RaidCal
             foreach (var p in calData.Parts)
             {
                 p.UpdateDot(data.ID, 0.05f, onRemove);
-            } 
-            calData.CurrentPart.AddDot(data.ID, data.Duration, data.MaxStacks);
-            onAddDot?.Invoke(calData.CurrentPart);
+            }
+
+            bool isFull= calData.CurrentPart.AddDot(data.ID, data.Duration, data.MaxStacks);
+            onAddDot?.Invoke(calData.CurrentPart,isFull);
         }
 
         double d = 0;
@@ -360,7 +369,7 @@ public partial class RaidCal
             float last = calData.Cal.otherData[data.ID + p.PartId];
             int t = (int)(calData.Time - last);
             return dmg * (1+t*data.BonusBValue[level-1]);
-        }, (p) =>
+        }, (p,isFull) =>
         {
             if (p.GetDotCount(data.ID) == 1)
                 calData.Cal.otherData[data.ID + p.PartId] = calData.Time;
@@ -395,7 +404,7 @@ public partial class RaidCal
     
     public static double PoisonAttack(CardData data, int level,RaidCalData calData)
     {
-        var d=DotBase(data, level, calData, null, (part) =>
+        var d=DotBase(data, level, calData, null, (part,isFull) =>
         {
             var list = part.DotDic[data.ID];
             for (var i = 0; i < list.Count; i++)
@@ -440,6 +449,16 @@ public partial class RaidCal
     
     public static double Swarm(CardData data, int level,RaidCalData calData)
     {
+        var d = DotBase(data, level, calData, null,(p, isFull) =>
+        {
+            if(calData.Parts.Count<=1)
+                return;
+            var index= calData.Parts.IndexOf(calData.CurrentPart);
+            var r = _random.Next(calData.Parts.Count - 1);
+            if (r >= index)
+                r++;
+            calData.Parts[r].AddDot(data.ID, data.Duration, data.MaxStacks);
+        });
         return 0;
     }
     
