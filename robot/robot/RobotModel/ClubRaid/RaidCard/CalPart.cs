@@ -34,8 +34,14 @@ public class CalPart
     }
     public PartName PartId;
     public double partAdd;
+    public float AfflictedAdd;
+    public float AfflictedChance=1;
     public Dictionary<string, List<float>> DotDic = new Dictionary<string, List<float>>();
 
+    public void ResetBuff()
+    {
+        AfflictedAdd = 0;
+    }
     public enum PartName
     {
         Head,
@@ -115,7 +121,7 @@ public class CalPart
         return DotDic[key].Count;
     }
 
-    public int UpdateDot(string key, float time)
+    public int UpdateDot(string key, float time,Action<CalPart> onRemove=null)
     {
         if(!DotDic.ContainsKey(key))
             return 0;
@@ -127,6 +133,7 @@ public class CalPart
             if (ct <= 0)
             {
                 list.RemoveAt(i);
+                onRemove?.Invoke(this);
             }
             else
             {
@@ -178,7 +185,11 @@ public class CalPart
         switch (cardType)
         {
             case "Burst": d += cardAdd.BurstAdd; break;
-            case "Afflicted": d += cardAdd.AfflictedAdd; break;
+            case "Affliction":
+            case "Afflicted": 
+                d += cardAdd.AfflictedAdd;
+                d += AfflictedAdd;
+                break;
         }
 
         if (CurrentType==2)

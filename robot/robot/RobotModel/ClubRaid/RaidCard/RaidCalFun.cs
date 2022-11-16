@@ -271,14 +271,21 @@ public partial class RaidCal
 
     #region 毒卡
 
-    public static double DotBase(CardData data, int level,RaidCalData calData,Func<CalPart,
-        double,double> onCal=null,Action<CalPart> onAddDot=null)
+    public static double DotBase(
+        CardData data, int level,
+        RaidCalData calData,
+        Func<CalPart, double,double> onCal=null,
+        Action<CalPart> onAddDot=null,
+        Action<CalPart> onRemove=null,
+        float expandAfflictedChanceAdd=1f)
     {
-        if (Probability(data.Chance * calData.RaidAdd.AfflictedChanceAdd * calData.CardAdd.AfflictedChanceAdd))
+        if (Probability(data.Chance * calData.RaidAdd.AfflictedChanceAdd 
+                                    * calData.CardAdd.AfflictedChanceAdd
+                                    * expandAfflictedChanceAdd))
         {
             foreach (var p in calData.Parts)
             {
-                p.UpdateDot(data.ID, 0.05f);
+                p.UpdateDot(data.ID, 0.05f, onRemove);
             } 
             calData.CurrentPart.AddDot(data.ID, data.Duration, data.MaxStacks);
             onAddDot?.Invoke(calData.CurrentPart);
@@ -315,17 +322,50 @@ public partial class RaidCal
     
     public static double BurningAttack(CardData data, int level,RaidCalData calData)
     {
-        return 0;
+        int partCount = 0;
+        calData.Parts.ForEach((i) =>
+        {
+            if (i.GetDotCount(data.ID) > 0)
+                partCount++;
+        });
+        var d = DotBase(data, level, calData, 
+            null, null, null, 
+            1 + partCount * data.BonusCValue);
+
+        return d;
     }
-    
+
+    public static float DecayingAttackNum = 0.25f;
     public static double DecayingAttack(CardData data, int level,RaidCalData calData)
     {
-        return 0;
+        var d = DotBase(data, level, calData, (p, dmg) =>
+        {
+            float a = 0;
+            if (p.BodyHp > 0)
+                a = (float)(p.BodyHp / p.BodyMaxHp);
+            else
+                a = (float)(p.ArmorHP / p.ArmorMaxHp);
+            if (a < DecayingAttackNum)
+                a = DecayingAttackNum;
+            var f = 1 - a / (1 - DecayingAttackNum);
+            return dmg * f;
+        });
+        return d;
     }
     
     public static double Disease(CardData data, int level,RaidCalData calData)
     {
-        return 0;
+        var d = DotBase(data, level, calData, (p, dmg) =>
+        {
+            float last = calData.Cal.otherData[data.ID + p.PartId];
+            int t = (int)(calData.Time - last);
+            return dmg * (1+t*data.BonusBValue[level-1]);
+        }, (p) =>
+        {
+            if (p.GetDotCount(data.ID) == 1)
+                calData.Cal.otherData[data.ID + p.PartId] = calData.Time;
+        });
+        return d;
     }
     
     public static double Fuse(CardData data, int level,RaidCalData calData)
@@ -335,7 +375,22 @@ public partial class RaidCal
     
     public static double PlagueAttack(CardData data, int level,RaidCalData calData)
     {
-        return 0;
+        int partCount = -1;
+        var d = DotBase(data, level, calData, (p, dmg) =>
+        {
+            if (partCount == -1)
+            {
+                partCount = 0;
+                calData.Parts.ForEach((i) =>
+                {
+                    if (i.GetDotCount() > 0)
+                        partCount++;
+                });
+            }
+
+            return dmg * (1 + partCount * data.BonusCValue);
+        });
+        return d;
     }
     
     public static double PoisonAttack(CardData data, int level,RaidCalData calData)
@@ -364,12 +419,23 @@ public partial class RaidCal
     
     public static double RuneAttack(CardData data, int level,RaidCalData calData)
     {
-        return 0;
+        var d = DotBase(data, level, calData, (p,dmg) =>
+        {
+            var c = p.GetDotCount(data.ID);
+            p.AfflictedAdd = c * data.BonusBValue[level - 1];
+            return dmg;
+        });
+        return d;
     }
     
     public static double Shadow(CardData data, int level,RaidCalData calData)
     {
-        return 0;
+        var d = DotBase(data, level, calData, (p, dmg) =>
+        {
+            int c = p.GetDotCount(data.ID);
+            return dmg * Math.Pow(data.BonusCValue, c);
+        });
+        return d;
     }
     
     public static double Swarm(CardData data, int level,RaidCalData calData)
