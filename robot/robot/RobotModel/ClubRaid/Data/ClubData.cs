@@ -78,7 +78,11 @@ namespace testrobot
             }
             
             RaidBegin = ClubTool.Parse(clan_raid.raid_active_at_utc)+new TimeSpan(8,0,0);
-            NextAttackTime = RaidBegin + new TimeSpan(clan_raid.max_potential_raid_attacks / 6 * 12, 0, 0);
+            NextAttackTime = RaidBegin;
+            while (NextAttackTime<DateTime.Now)
+            {
+                NextAttackTime += new TimeSpan(12, 0, 0);
+            }
         }
     }
 

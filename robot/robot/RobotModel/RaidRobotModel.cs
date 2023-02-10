@@ -204,6 +204,7 @@ public partial class RaidRobotModel : RobotModelBase
             var f = GetModelDir() + "AtkInfo.png";
             ClubTool.DrawAtkInfo(res,f,Card32Path,true);
             _data.AttackInfos.Clear();
+            _data.TitanDmgList.Clear();
             await SendGroupMsg("突袭结束了");
             await UploadGroupFile("AtkInfo.png", $"AtkInfo_{DateTime.Now:MM_dd_HH_mm_ss}.png");
         }
@@ -216,6 +217,7 @@ public partial class RaidRobotModel : RobotModelBase
         if (!_club.HaveRaid)
         {
             _data.CallMe.Clear();
+            return;
         }
 
         bool isNew = last.titan_lords.currentIndex != _club.titan_lords.currentIndex;
@@ -467,9 +469,12 @@ public partial class RaidRobotModel : RobotModelBase
             foreach (var playerData in thisData.clan_raid.leaderboard)
             {
                 thisDmg += playerData.score;
-                var a = playerData.num_attacks - _data.Player[playerData.player_code].AtkCount;
-                if (a > 0)
-                    atkCount.Add(playerData.player_code, a);
+                if(_data.Player.ContainsKey(playerData.player_code))
+                {
+                    var a = playerData.num_attacks - _data.Player[playerData.player_code].AtkCount;
+                    if (a > 0)
+                        atkCount.Add(playerData.player_code, a);
+                }
             }
             foreach (var playerData in lastClub.clan_raid.leaderboard)
             {

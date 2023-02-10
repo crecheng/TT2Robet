@@ -104,10 +104,10 @@ namespace testrobot
                 {"X-TT2-session-id", Tt2Post.SessionId}
             };
             string json = webKey.json;
-            if (!string.IsNullOrWhiteSpace(webKey.SessionId))
-            {
-                dic["X-TT2-session-id"] = webKey.SessionId;
-            }
+            // if (!string.IsNullOrWhiteSpace(webKey.SessionId))
+            //{
+            //    dic["X-TT2-session-id"] = webKey.SessionId;
+            //}
 
             if (parms != null)
             {

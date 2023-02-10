@@ -124,7 +124,7 @@ public partial class RaidRobotModel
             if (!_club.HaveRaid)
                 return "当前没有突袭";
             var f = GetModelDir() + "kkHp.png";
-            _club.GetCurrentTitanData().DrawTitan(f);
+            _club.GetCurrentTitanData().DrawTitan(_club,f);
             return Tool.Image(f);
         }
 
@@ -785,8 +785,12 @@ public partial class RaidRobotModel
                 {
                     count += value;
                 }
-                
-                dic.Add($"{info.Start:HH:mm:ss}-{info.End:HH:mm:ss}",$"{dmg.ShowNum()}    \t{count}\t{++j}\t{other}");
+
+                var k = $"{info.Start:HH:mm:ss}-{info.End:HH:mm:ss}";
+                if(dic.ContainsKey(k))
+                    dic.Add(k+"_1",$"{dmg.ShowNum()}    \t{count}\t{++j}\t{other}");
+                else
+                    dic.Add(k,$"{dmg.ShowNum()}    \t{count}\t{++j}\t{other}");
             }
 
             var f = GetModelDir() + "LookLastHPChangeAll.png";
@@ -1219,14 +1223,20 @@ public partial class RaidRobotModel
                 return "请输入正确部位，如头蓝条，头白条";
         }
 
-        List<CalPart> parts = new List<CalPart>(8);
+        List<CalPart> parts = new List<CalPart>();
+        for (int i = 0; i < 8; i++)
+        {
+            parts.Add(null);
+        }
         CalPart target = null;
         if (pa == -1 && _club.HaveRaid)
         {
             var titan= _club.GetCurrentTitanData();
             CalPart part = null;
-            titan.parts.ForEach(i =>
+            
+            for (var j = 0; j < titan.parts.Count; j++)
             {
+                var i = titan.parts[j];
                 int pd = (int) i.part_id;
                 int index = pd / 2;
                 if (parts[index] == null)
@@ -1235,8 +1245,7 @@ public partial class RaidRobotModel
                     parts[index].Add(i);
                 if (index==p)
                     part = parts[index];
-
-            });
+            }
 
             if (part.CurrentHp > 0)
                 target = part;

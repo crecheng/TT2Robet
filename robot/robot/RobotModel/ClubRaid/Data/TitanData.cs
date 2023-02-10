@@ -79,7 +79,20 @@ namespace testrobot
             return (blue,bone);
         }
 
-        public void DrawTitan(string name)
+        public static Dictionary<string, string> cardInfo = new Dictionary<string, string>()
+        {
+            { "MirrorForceBoost", "镜像" },
+            { "TeamTacticsClanMoraleBoost", "团队" },
+        };
+
+        public static string GetCardInfo(string key)
+        {
+            if (cardInfo.ContainsKey(key))
+                return cardInfo[key];
+            return key;
+        }
+
+        public void DrawTitan(ClubData clubData, string name)
         {
             List<Rectangle> rects = new List<Rectangle>()
             {
@@ -178,6 +191,21 @@ namespace testrobot
                 g.DrawString(
                     $"{RDebuff.Translate(enchant_bonuses[0].BonusType)} {sing}{enchant_bonuses[0].BonusAmount:P2}",
                     fontS, Brushes.Azure, 330, 130);
+            }
+            
+
+            #endregion
+
+            #region 特殊卡
+
+            if (clubData.clan_raid.special_card_info != null)
+            {
+                for (var i = 0; i < clubData.clan_raid.special_card_info.Count; i++)
+                {
+                    var buff = clubData.clan_raid.special_card_info[i];
+                    g.DrawString($"{GetCardInfo(buff.BonusType)} {buff.BonusAmount:P2}",
+                        fontS,Brushes.Azure, 30, 130+i*20);
+                }
             }
             
 
