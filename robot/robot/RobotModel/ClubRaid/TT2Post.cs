@@ -104,10 +104,10 @@ namespace testrobot
                 {"X-TT2-session-id", Tt2Post.SessionId}
             };
             string json = webKey.json;
-            // if (!string.IsNullOrWhiteSpace(webKey.SessionId))
-            //{
-            //    dic["X-TT2-session-id"] = webKey.SessionId;
-            //}
+            if (!string.IsNullOrWhiteSpace(webKey.SessionId))
+            {
+                dic["X-TT2-session-id"] = webKey.SessionId;
+            }
 
             if (parms != null)
             {
@@ -140,6 +140,7 @@ namespace testrobot
             Console.WriteLine(s + "error");
         }
 
+        public static bool UseGZip = false;
         public string InlinePost(string url, Dictionary<string, string> dic, string json)
         {
             string result = "";
@@ -171,7 +172,13 @@ namespace testrobot
 
             using (Stream stream = resp.GetResponseStream())
             {
-                result = GZipDecompress(stream, Encoding.UTF8);
+                if(UseGZip)
+                    result = GZipDecompress(stream, Encoding.UTF8);
+                else
+                {
+                    StreamReader reader = new StreamReader(stream); 
+                    result = reader.ReadToEnd();
+                }
             }
             //获取响应内容
 
@@ -204,6 +211,8 @@ namespace testrobot
         public Dictionary<TT2Post.TT2Fun, TT2Post.SendInfo> key;
         public string Version = "5.22.0";
         public long SupplyQQ;
+        public string AppToken;
+        public string PlayerToken;
 
 
         public string GetEasyData()

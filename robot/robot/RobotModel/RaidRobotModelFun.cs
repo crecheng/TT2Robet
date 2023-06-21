@@ -22,8 +22,11 @@ public partial class RaidRobotModel
         {
             if (!(data.IsAdmin|| data.IsGroupAdmin))
                 return "你没权限！";
+            if (string.IsNullOrEmpty(PostApi.AppToken) || string.IsNullOrEmpty(PostApi.PlayerToken))
+                return "API没有APPToken或PlayerToken";
             await SendGroupMsg("刷新ing");
             var t = await RefreshData();
+            PostApi.CheckReStart();
             if (t != null)
             {
                 _club = t;
@@ -147,8 +150,8 @@ public partial class RaidRobotModel
             if (!_club.HaveRaid)
                 return "当前没有突袭";
 
-            var last = _club.NextAttackTime - new TimeSpan(20, 0, 0);
-            var atkInfo = GetAtkInfo(last, DateTime.Now - new TimeSpan(8, 0, 0),true);
+            var last = _club.NextAttackTime - new TimeSpan(12, 0, 0);
+            var atkInfo = GetAtkInfo(last, DateTime.Now ,true);
             List<string> set = new List<string>(_data.ShowCard);
             Dictionary<string, List<string>> showCard = new Dictionary<string, List<string>>();
             foreach (var (key, list) in atkInfo)
@@ -261,19 +264,7 @@ public partial class RaidRobotModel
         return "你还没绑定";
         await Task.CompletedTask;
     }
-
-    private async Task<SoraMessage> TipNotShareSwitch(GroupMsgData data)
-    {
-        if (data.IsAdmin|| data.IsGroupAdmin)
-        {
-            _data.TipNotShare = !_data.TipNotShare;
-            return $"分享警告-{_data.TipNotShare}";
-        }
-
-        return "你没权限！";
-        await Task.CompletedTask;
-
-    }
+    
     private async Task<SoraMessage> TipDmgIsOut(GroupMsgData data)
     {
         if (data.IsAdmin|| data.IsGroupAdmin)
@@ -327,8 +318,8 @@ public partial class RaidRobotModel
     {
         if (!_club.HaveRaid)
             return "当前没有突袭";
-        var last = _club.NextAttackTime - new TimeSpan(20, 0, 0);
-        var f = GetNearAtkInfo(last, DateTime.Now - new TimeSpan(8, 0, 0),true);
+        var last = _club.NextAttackTime - new TimeSpan(12, 0, 0);
+        var f = GetNearAtkInfo(last, DateTime.Now,true);
         if (!string.IsNullOrEmpty(f))
             return Tool.Image(f);
         return "没有数据";
@@ -347,7 +338,12 @@ public partial class RaidRobotModel
         Dictionary<string, Dictionary<string, int>> dic = new Dictionary<string, Dictionary<string, int>>();
         foreach (var (key, value) in _data.Player)
         {
-            dic.Add(value.Name, value.Card);
+            var name = value.Name;
+            if (dic.ContainsKey(name))
+            {
+                name += value.Code;
+            }
+            dic.Add(name, value.Card);
         }
 
         foreach (var (key, value) in _data.PlayerId)
@@ -378,20 +374,26 @@ public partial class RaidRobotModel
         Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
         foreach (var info in data)
         {
-            res.Add(_data.Player[info.Key].Name,info.Value);
+            if(_data.Player.ContainsKey(info.Key))
+                res.Add(_data.Player[info.Key].Name,info.Value);
+            else
+                res.Add(info.Key,info.Value);
         }
         var f = GetModelDir() + "AtkInfo.png";
         ClubTool.DrawAtkInfo(res,f,Card32Path,true);
         await UploadGroupFile("AtkInfo.png", $"AtkInfo_{DateTime.Now:MM_dd_HH_mm_ss}.png");
         
-        _data.AttackInfos.Sort((x,y)=>x.Id-y.Id);
+        _data.AttackInfos.Sort((x,y)=>DateTime.Compare(x.GetTime(),y.GetTime()));
         StringBuilder sb = new StringBuilder();
         sb.Append("名字,时间,卡1,等级,卡2,等级,卡3,等级,突袭等级,伤害");
         foreach (var info in _data.AttackInfos)
         {
             sb.Append('\n');
-            sb.Append(_data.Player[info.Player].Name).Append(',');
-            sb.Append(info.Time+new TimeSpan(8,0,0)).Append(',');
+            if(_data.Player.ContainsKey(info.Player))
+                sb.Append(_data.Player[info.Player].Name).Append(',');
+            else
+                sb.Append(info.Player).Append(',');
+            sb.Append(info.GetTime()+new TimeSpan(8,0,0)).Append(',');
             int c = 0;
             foreach (var i in info.Data.Card)
             {
@@ -412,24 +414,7 @@ public partial class RaidRobotModel
         
         return SoraMessage.Null;
     }
-
-    private async Task<SoraMessage> ShareCountShow(GroupMsgData data)
-    {
-        List<string> player = new List<string>(_data.Player.Keys);
-        player.Sort((x,y)=>_data.Player[y].NotShareCount-_data.Player[x].NotShareCount);
-        Dictionary<string, string> dic = new Dictionary<string, string>();
-        dic.Add("名字",$"次数\t分享\t没分享");
-        foreach (var id in player)
-        {
-            var p = _data.Player[id];
-            dic.Add(p.Name,$"{p.AtkCount}\t{p.ShareCount}\t{p.NotShareCount}");
-        }
-        
-        var f = GetModelDir() + "ShareCountShow.png";
-        ClubTool.DrawInfo(dic, f, 300);
-        return Tool.Image(f);
-        await Task.CompletedTask;
-    }
+    
 
 
     #endregion
@@ -444,9 +429,9 @@ public partial class RaidRobotModel
             return "当前没有突袭";
         if (int.TryParse(arg, out int time))
         {
-            TimeSpan t = new TimeSpan(8, 0, time);
+            TimeSpan t = new TimeSpan(0, 0, time);
             var start = DateTime.Now - t;
-            var end = DateTime.Now - new TimeSpan(8, 0, 0);
+            var end = DateTime.Now ;
             var f = GetNearAtkInfo(start, end);
             if (!string.IsNullOrEmpty(f))
                 return Tool.Image(f);
@@ -758,81 +743,59 @@ public partial class RaidRobotModel
     {
         if (string.IsNullOrEmpty(time))
             return "请正确输入，如：查询血量变动1";
-        if (time == "全部")
-        {
-            if (_data.TitanDmgList.Count == 0)
-                return "还没有数据";
-            Dictionary<string, string> dic = new Dictionary<string, string>();
-            dic.Add("时间段","伤害\t\t次数\t序号");
-            int j = 0;
-            int max = 0;
-            for (var i = _data.TitanDmgList.Count - 1; i >= 0; i--)
-            {
-                var info = _data.TitanDmgList[i];
-                double dmg = 0;
-                string other=String.Empty;
-                
-                foreach (var (key, value) in info.dmg)
-                {
-                    other+=$"{TitanData.PartNameShow(key)}-{value.ShowNum()} ";
-                    dmg += value;
-                }
-
-                max = Math.Max(max, other.Length);
-
-                int count = 0;
-                foreach (var (key, value) in info.AttackCount)
-                {
-                    count += value;
-                }
-
-                var k = $"{info.Start:HH:mm:ss}-{info.End:HH:mm:ss}";
-                if(dic.ContainsKey(k))
-                    dic.Add(k+"_1",$"{dmg.ShowNum()}    \t{count}\t{++j}\t{other}");
-                else
-                    dic.Add(k,$"{dmg.ShowNum()}    \t{count}\t{++j}\t{other}");
-            }
-
-            var f = GetModelDir() + "LookLastHPChangeAll.png";
-            ClubTool.DrawInfo(dic,f,200+max*19);
-            return Tool.Image(f);
-        }
+        // if (time == "全部")
+        // {
+        //     if (_data.TitanDmgList.Count == 0)
+        //         return "还没有数据";
+        //     Dictionary<string, string> dic = new Dictionary<string, string>();
+        //     dic.Add("时间段","伤害\t\t次数\t序号");
+        //     int j = 0;
+        //     int max = 0;
+        //     for (var i = _data.TitanDmgList.Count - 1; i >= 0; i--)
+        //     {
+        //         var info = _data.TitanDmgList[i];
+        //         double dmg = 0;
+        //         string other=String.Empty;
+        //         
+        //         foreach (var (key, value) in info.dmg)
+        //         {
+        //             other+=$"{TitanData.PartNameShow(key)}-{value.ShowNum()} ";
+        //             dmg += value;
+        //         }
+        //
+        //         max = Math.Max(max, other.Length);
+        //
+        //         int count = 0;
+        //         foreach (var (key, value) in info.AttackCount)
+        //         {
+        //             count += value;
+        //         }
+        //
+        //         var k = $"{info.Start:HH:mm:ss}-{info.End:HH:mm:ss}";
+        //         if(dic.ContainsKey(k))
+        //             dic.Add(k+"_1",$"{dmg.ShowNum()}    \t{count}\t{++j}\t{other}");
+        //         else
+        //             dic.Add(k,$"{dmg.ShowNum()}    \t{count}\t{++j}\t{other}");
+        //     }
+        //
+        //     var f = GetModelDir() + "LookLastHPChangeAll.png";
+        //     ClubTool.DrawInfo(dic,f,200+max*19);
+        //     return Tool.Image(f);
+        // }
         if (int.TryParse(time, out int t))
         {
-            if (t <= 0 || t > _data.TitanDmgList.Count)
+            if (t <= 0 || t > _data.AttackInfos.Count)
             {
-                return "当前只能查询1~" + _data.TitanDmgList.Count;
+                return "当前只能查询1~" + _data.AttackInfos.Count;
             }
-            var d = _data.TitanDmgList[_data.TitanDmgList.Count - t];
-            Dictionary<string, List<AttackShareInfo>> atk = new Dictionary<string, List<AttackShareInfo>>();
-            HashSet<int> set = new HashSet<int>(d.AttackInfoIdList);
-            for (var i = _data.AttackInfos.Count - 1; i >= 0; i--)
-            {
-                var info = _data.AttackInfos[i];
-                if (set.Contains(info.Id))
-                {
-                    if (!atk.ContainsKey(info.Player))
-                        atk.Add(info.Player, new List<AttackShareInfo>());
-                    atk[info.Player].Add(info);
-                    set.Remove(info.Id);
-                    if (set.Count <= 0)
-                        break;
-                }
-            }
-
-            Dictionary<string, List<AttackShareInfo>> atkRes = new Dictionary<string, List<AttackShareInfo>>();
-            foreach (var (key, value) in atk)
-            {
-                atkRes.Add(_data.Player[key].Name,value);
-            }
-
-            Dictionary<string, int> atkCount = new Dictionary<string, int>();
-            foreach (var (key, value)  in d.AttackCount)
-            {
-                atkCount.Add(_data.Player[key].Name,value);
-            }
+            var d = _data.AttackInfos[_data.AttackInfos.Count - t];
             var f = GetModelDir() + "LookLastHPChange.png";
-            ClubTool.DrawTitanHPChangeInfo(d.dmg,atkCount,atkRes,d.OutDmg, d.Start,d.End,f,Card32Path);
+            ClubTool.DrawAtkInfo(f,d);
+            if (DateTime.Now - LastSaveTime > SaveTime)
+            {
+                SaveRaidData();
+                LastSaveTime=DateTime.Now;
+            }
             return Tool.Image(f);
         }
         else 
@@ -916,7 +879,32 @@ public partial class RaidRobotModel
             return "解析失败";
         }
     }
+
+    private async Task<SoraMessage> SetAppToken(GroupMsgData data, string token)
+    {
+        if (string.IsNullOrEmpty(token))
+            return "无效";
+        if (token.StartsWith(" "))
+            token= token.Substring(1, token.Length - 1);
+        _config.AppToken = token;
+        PostApi.AppToken = token;
+        Save("config.json",_config.Save());
+        return "更新成功\n你可以撤回了";
+    }
     
+    private async Task<SoraMessage> SetPlayerToken(GroupMsgData data, string token)
+    {
+        if (string.IsNullOrEmpty(token))
+            return "无效";
+        if (token.StartsWith(" "))
+            token= token.Substring(1, token.Length - 1);
+        _config.PlayerToken = token;
+        PostApi.PlayerToken = token;
+        _config.SupplyQQ = data.Sender;
+        Save("config.json",_config.Save());
+        return "更新成功\n你可以撤回了";
+    }
+
     private async Task<SoraMessage> ParseConfigInfoFile(GroupMsgData data, string curl)
     {
         if (!(data.IsAdmin || data.IsGroupAdmin))
@@ -1017,6 +1005,11 @@ public partial class RaidRobotModel
                 } break;
                 case "/clan/forum/board":
                 {
+                    return "弃用，请使用AppToken和PlayerToken";
+                    if (!json.Contains("last_message_id"))
+                    {
+                        return "没有last_message_id，无效请求";
+                    }
                     if (!_config.key.ContainsKey(TT2Post.TT2Fun.Forum))
                         _config.key.Add(TT2Post.TT2Fun.Forum,
                             new TT2Post.SendInfo("/clan/forum/board", urlArgs["s"], json));
@@ -1328,6 +1321,56 @@ public partial class RaidRobotModel
         return Tool.Image(f);
     }
 
+    
+    /// <summary>
+    /// 清理不在的人
+    /// </summary>
+    /// <param name="data"></param>
+    /// <returns></returns>
+    private async Task<SoraMessage> ClearMember(GroupMsgData data)
+    {
+        if (_config.CanUse())
+        {
+            if (!(data.IsAdmin|| data.IsGroupAdmin))
+                return "你没权限！";
+            if (_data == null || _club==null || !_club.HaveRaid)
+                return "没有数据！";
+            var bak = new Dictionary<string, PlayerData>(_data.Player);
+            _data.Player.Clear();
+            foreach (var (name, id) in _data.PlayerId)
+            {
+                _data.Player.Add(id,bak[id]);
+            }
+            SaveRaidData();
+            return $"成功清理{bak.Count - _data.Player.Count}个成员数据";
+        }
+        else
+        {
+            return "还没配置文件";
+        }
+        await Task.CompletedTask;
+    }
+    
+    /// <summary>
+    /// 清理不在的人
+    /// </summary>
+    /// <param name="data"></param>
+    /// <returns></returns>
+    private async Task<SoraMessage> StopClient(GroupMsgData data)
+    {
+        if (_config.CanUse())
+        {
+            if (!(data.IsAdmin|| data.IsGroupAdmin))
+                return "你没权限！";
+            PostApi.Stop();
+            return $"api断开连接";
+        }
+        else
+        {
+            return "还没配置文件";
+        }
+        await Task.CompletedTask;
+    }
 
     #endregion
 }

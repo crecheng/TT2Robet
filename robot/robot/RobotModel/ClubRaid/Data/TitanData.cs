@@ -27,7 +27,7 @@ namespace testrobot
             public PartName part_id;
             public double total_hp;
             public bool cursed;
-            
+
             /// <summary>
             /// 获得当前部位的百分比
             /// </summary>

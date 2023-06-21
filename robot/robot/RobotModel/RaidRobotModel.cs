@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using ConfigData;
 using Newtonsoft.Json;
+using robot.SocketTool;
 using Sora.Entities.Segment;
 using Sora.EventArgs.SoraEvent;
 using testrobot;
@@ -21,12 +22,10 @@ public partial class RaidRobotModel : RobotModelBase
     private TT2PostConfig _config;
     
     private static Task _refreshDataTask;
-    private static Queue<Func<Task>> _refreshQueue=new Queue<Func<Task>>();
-    private static Queue<RaidRobotModel> _refreshDataQueue=new Queue<RaidRobotModel>();
+    private TT2PostAPI PostApi;
     
     private static string ConfigFile = "config.json";
     private static string DataFile = "data.json";
-    private TimeSpan _refreshCd = new TimeSpan(0, 0, 5, 0);
     private RaidData _data;
     private string _startString = "#";
     private int showMyCardCount;
@@ -116,7 +115,7 @@ public partial class RaidRobotModel : RobotModelBase
     private string GetNearAtkInfo(DateTime start, DateTime end,bool allPlayer=false)
     {
         int c = 0;
-        var all = GetAtkInfo(start, end,true);
+        var all = GetAtkInfo(start, end,allPlayer);
         foreach (var d in all)
         {
             c += d.Value.Count;
@@ -127,7 +126,12 @@ public partial class RaidRobotModel : RobotModelBase
         Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
         foreach (var info in all)
         {
-            res.Add(_data.Player[info.Key].Name,info.Value);
+            var name = _data.Player[info.Key].Name;
+            if (res.ContainsKey(name))
+            {
+                name += _data.Player[info.Key].Code;
+            }
+            res.Add(name,info.Value);
         }
         var f = GetModelDir() + "AtkInfo.png";
         ClubTool.DrawAtkInfo(res,f,Card32Path);
@@ -140,7 +144,7 @@ public partial class RaidRobotModel : RobotModelBase
         Dictionary<string, List<AttackShareInfo>> all = new Dictionary<string, List<AttackShareInfo>>();
         foreach (var info in _data.AttackInfos)
         {
-            if (info.Time > start && info.Time< end)
+            if (info.Log!=null && info.GetTime() > start && info.GetTime()< end)
             {
                 if(!all.ContainsKey(info.Player))
                     all.Add(info.Player,new List<AttackShareInfo>());
@@ -186,32 +190,61 @@ public partial class RaidRobotModel : RobotModelBase
 
     }
 
-    private async Task CheckEndRaid()
+    private async Task EndRaid()
     {
-        if(!_club.HaveRaid)
-            return;
-        var t = _club.GetCurrentTitanData();
-        if (t.current_hp > 0)
-            return;
         if (_data.AttackInfos.Count > 0)
         {
             var data= GetAtkInfo(DateTime.Now - new TimeSpan(7, 0, 0, 0), DateTime.Now, true);
             Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
             foreach (var info in data)
             {
-                res.Add(_data.Player[info.Key].Name,info.Value);
+                var name = _data.Player[info.Key].Name;
+                if (res.ContainsKey(name))
+                {
+                    name += _data.Player[info.Key].Code;
+                }
+                res.Add(name,info.Value);
             }
             var f = GetModelDir() + "AtkInfo.png";
             ClubTool.DrawAtkInfo(res,f,Card32Path,true);
             _data.AttackInfos.Clear();
-            _data.TitanDmgList.Clear();
+            _data.CallMe.Clear();
             await SendGroupMsg("突袭结束了");
             await UploadGroupFile("AtkInfo.png", $"AtkInfo_{DateTime.Now:MM_dd_HH_mm_ss}.png");
         }
     }
-
-    private async Task RefreshCallMe(ClubData last)
+    
+    private async Task ClearRaid()
     {
+        _data.AttackInfos.Clear();
+        _data.CallMe.Clear();
+        _club = await RefreshData();
+    }
+
+    private void RefreshHp(AttackAPIInfo apiInfo)
+    {
+        foreach (TitanData.Part p in _club.titan_lords.current.parts)
+        {
+            var t = apiInfo.raid_state.current.parts.Find((i) => p.part_id == i.part_id);
+            if (t != null)
+            {
+                p.current_hp = t.current_hp;
+            }
+        }
+        _club.titan_lords.current.current_hp = apiInfo.raid_state.current.current_hp;
+    }
+
+    private async Task RefreshCallMe(int currentIndex, AttackAPIInfo apiInfo)
+    {
+        bool isNew = currentIndex != _club.titan_lords.currentIndex;
+        if (isNew)
+        {
+            _club = await RefreshData();
+        }
+        else
+        {
+            RefreshHp(apiInfo);
+        }
         if(_data.CallMe.Count<=0)
             return;
         if (!_club.HaveRaid)
@@ -219,8 +252,6 @@ public partial class RaidRobotModel : RobotModelBase
             _data.CallMe.Clear();
             return;
         }
-
-        bool isNew = last.titan_lords.currentIndex != _club.titan_lords.currentIndex;
         var titan = _club.GetCurrentTitanData().GetBodyInfo();
         SoraMessage msg = "小助手提醒你，打突袭了！\n";
         int c = 0;
@@ -258,314 +289,55 @@ public partial class RaidRobotModel : RobotModelBase
             await SendGroupMsg(msg);
         }
     }
+
+    public DateTime LastSaveTime;
+    public TimeSpan SaveTime = new TimeSpan(0, 5, 0);
+    public bool ShowAtk = false;
+    private async void RefreshRaidCardDataSave(AttackAPIInfo attackInfo)
+    {
+        try
+        {
+            var atk = new AttackShareInfo();
+            atk.Init(attackInfo);
+            if(!_data.Player.ContainsKey(atk.Player))
+                _data.Player.Add(atk.Player,new PlayerData()
+                {
+                    Code = atk.Player,
+                    Name = atk.PlayerName,
+                });
+            var p = _data.Player[atk.Player];
+            p.RaidLevel = atk.Data.RaidLevel;
+            foreach (var (key, value) in atk.Data.Card)
+            {
+                p.Card[key] = value;
+            }
+            _data.AttackInfos.Add(atk);
+            if (DateTime.Now - LastSaveTime > SaveTime)
+            {
+                SaveRaidData();
+                LastSaveTime = DateTime.Now;
+            }
+            if(ShowAtk)
+            {
+                var f = GetModelDir() + $"ShowAtkApi{showMyCardCount++ % 5}.png";
+                ClubTool.DrawAtkInfo(f, atk);
+                await SendGroupMsg(Tool.Image(f));
+            }
+            await RefreshCallMe(attackInfo.raid_state.titan_index, attackInfo);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            await OutException(e);
+        }
+    }
     
-    private async Task RefreshRaidCardDataSave(List<AttackShareInfo> cards)
-    {
-        int max = _data.LastFromId;
-        Dictionary<string, int> share = new Dictionary<string, int>();
-        foreach (var atk in cards)
-        {
-            if (atk.Id > max)
-            {
-                _data.AttackInfos.Add(atk);
-                if(!share.ContainsKey(atk.Player))
-                    share.Add(atk.Player,0);
-                share[atk.Player] += 1;
-                max = atk.Id;
-                if(!_data.Player.ContainsKey(atk.Player))
-                    _data.Player.Add(atk.Player,new PlayerData()
-                    {
-                        Code = atk.Player,
-                        Name = Regex.Unescape(atk.PlayerName)
-                    });
-                var p = _data.Player[atk.Player];
-                p.RaidLevel = atk.Data.RaidLevel;
-                foreach (var (key, value) in atk.Data.Card)
-                {
-                    if (!p.Card.ContainsKey(key))
-                        p.Card.Add(key, value);
-                    else
-                        p.Card[key] = value;
-                }
-            }
-        }
-
-        if (_club.HaveRaid)
-        {
-            var d = RefreshAtkAndShareCount(share);
-            if (d.Count > 0)
-            {
-                await SendNotSharePlayer(d);
-            }
-        }
-        _data.LastFromId = max;
-        
-    }
-
-    private Dictionary<string, int> RefreshAtkAndShareCount(Dictionary<string, int> share)
-    {
-        CheckNewRaid();
-        Dictionary<string, int> dic = new Dictionary<string, int>();
-        foreach (var data in _club.clan_raid.leaderboard)
-        {
-            var id = data.player_code;
-            var player = _data.Player[id];
-            var count = data.num_attacks;
-            var last = player.AtkCount;
-            var lastNotShare = player.LastNotShareCount;
-            
-            share.TryGetValue(id, out int shareCount);
-            var atk = count - last;
-            var notShareThis = atk - shareCount;
-            var notShare = lastNotShare + notShareThis;
-            if (atk > 0)
-            {
-                player.LastNotShareCount = notShare;
-                
-                player.AtkCount = data.num_attacks;
-                player.ShareCount += shareCount;
-                player.NotShareCount += notShareThis;
-                if(player.LastNotShareCount>0)
-                    Console.WriteLine($"{Regex.Unescape(data.name)}\tA:{atk}\tS:{shareCount}\tL:{player.LastNotShareCount}");
-            }
-            else
-            {
-                player.LastNotShareCount = notShare;
-                if (player.LastNotShareCount > 0)
-                {
-                    dic.Add(player.Code,player.LastNotShareCount);
-                    player.LastNotShareCount = 0;
-                }
-            }
-
-        }
-
-        return dic;
-    }
-
-    private async Task SendNotSharePlayer(Dictionary<string, int> data)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.Append("以下成员打了没分享");
-        foreach (var (key, value) in data)
-        {
-            sb.Append($"\n[{_data.Player[key].Name}]-[{value}]");
-        }
-        Console.WriteLine(sb);
-        if (_data.TipNotShare)
-            await SendGroupMsg(sb.ToString());
-    }
-
-    private void CheckNewRaid()
-    {
-        int saveCount = 0;
-        int allCount = 0;
-        foreach (var data in _club.clan_raid.leaderboard)
-        {
-            var player = _data.Player[data.player_code];
-            saveCount += player.AtkCount;
-            allCount += data.num_attacks;
-        }
-
-        if (saveCount > allCount)
-        {
-            NewRaid();
-        }
-    }
-
-    private void NewRaid()
-    {
-        foreach (var data in _data.Player)
-        {
-            data.Value.AtkCount = 0;
-            data.Value.ShareCount = 0;
-            data.Value.NotShareCount = 0;
-        }
-    }
-
-
-
     private async Task<SoraMessage> GetRaidConfig(GroupMsgData data)
     {
         return _config.GetEasyData();
     }
-
-    private async Task RefreshClubData()
-    {
-        try
-        {
-            Console.WriteLine($"{DateTime.Now}-{Group}-部落刷新数据");
-            _data.LastRefreshTime=DateTime.Now;
-            if (_config.CanUse() && _data.isRefresh)
-            {
-                ClubData tmp = _post.RaidCurrent(GetModelDir() + "RaidCurrent.json");
-                var msg = _post.GetForum(GetModelDir() + "GetForum.json");
-                var all = AttackShareInfo.GetAllAttackShareInfo(msg);
-                tmp.Init();
-                var last = _club;
-                if (tmp != null)
-                {
-                    Console.WriteLine("OK");
-                    int res = await RefreshTitanDmg(last, tmp, all);
-                    Console.WriteLine(res);
-                    _club = tmp;
-                }
-
-                await RefreshRaidDataSave();
-                await RefreshRaidCardDataSave(all);
-                await RefreshCallMe(last);
-                await CheckEndRaid();
-                SaveRaidData();
-                Console.WriteLine($"{DateTime.Now}-{Group}-部落刷新数据保存");
-                _data.FailCount = 0;
-            }
-        }
-        catch (Exception e)
-        {
-            _data.FailCount++;
-            if (_data.FailCount > 5)
-            {
-                _data.isRefresh = false;
-                SoraMessage send = new SoraMessage("账号数据失效，请重新设置！！！\n");
-                if(_config.SupplyQQ!=0)
-                    send.Add(SoraSegment.At(_config.SupplyQQ));
-                await SendGroupMsg(send);
-                await OutException(e);
-            }
-
-            Console.WriteLine(e);
-        }
-    }
-
-    private async Task StartRefreshClubDataQueue()
-    {
-        while (_refreshQueue.Count>0)
-        {
-            var t = _refreshQueue.Dequeue();
-            var data = _refreshDataQueue.Dequeue();
-            if ((DateTime.Now - data._data.LastRefreshTime) >= _refreshCd)
-            {
-                await t.Invoke();
-            }
-            _refreshQueue.Enqueue(t);
-            _refreshDataQueue.Enqueue(data);
-            await Task.Delay(10000);
-        }
-    }
-
-    private async Task<int> RefreshTitanDmg(ClubData lastClub, ClubData thisData, List<AttackShareInfo> atk)
-    {
-        try
-        {
-            if (lastClub == null)
-                return -1;
-            if (!thisData.HaveRaid)
-                return -1;
-            Dictionary<string, int> atkCount = new Dictionary<string, int>();
-            double thisDmg=0;
-            double lastDmg=0;
-            var dmgAll = thisDmg - lastDmg;
-            double titanDmg = 0;
-            foreach (var playerData in thisData.clan_raid.leaderboard)
-            {
-                thisDmg += playerData.score;
-                if(_data.Player.ContainsKey(playerData.player_code))
-                {
-                    var a = playerData.num_attacks - _data.Player[playerData.player_code].AtkCount;
-                    if (a > 0)
-                        atkCount.Add(playerData.player_code, a);
-                }
-            }
-            foreach (var playerData in lastClub.clan_raid.leaderboard)
-            {
-                lastDmg += playerData.score;
-            }
-
-            List<int> atkIdList = new List<int>();
-            foreach (var info in atk)
-            {
-                if (info.Id > _data.LastFromId)
-                {
-                    atkIdList.Add(info.Id);
-                }
-            }
-
-            Console.WriteLine($"atkCount:{atkCount.Count}");
-            if (atkCount.Count > 0)
-            {
-                Dictionary<TitanData.PartName, double> dmg = new Dictionary<TitanData.PartName, double>();
-                if (thisData.titan_lords.currentIndex != lastClub.titan_lords.currentIndex)
-                {
-                    dmg.Add(TitanData.PartName.Last, lastClub.GetCurrentTitanData().current_hp);
-                    titanDmg += lastClub.GetCurrentTitanData().current_hp;
-                    var current = thisData.GetCurrentTitanData();
-                    foreach (var part in current.parts)
-                    {
-                        if (Math.Abs(part.total_hp - part.current_hp) > 0.01)
-                        {
-                            var d = part.total_hp - part.current_hp;
-                            titanDmg += d;
-                            dmg.Add(part.part_id, d);
-                        }
-                    }
-                }
-                else
-                {
-                    var current = thisData.GetCurrentTitanData();
-                    Dictionary<TitanData.PartName, double> last = new Dictionary<TitanData.PartName, double>();
-                    foreach (var part in lastClub.GetCurrentTitanData().parts)
-                    {
-                        last.Add(part.part_id, part.current_hp);
-                    }
-
-                    foreach (var part in current.parts)
-                    {
-                        var d = last[part.part_id] - part.current_hp;
-                        if (Math.Abs(d) > 0.01)
-                        {
-                            titanDmg += d;
-                            dmg.Add(part.part_id, d);
-                        }
-
-                    }
-                }
-
-                double outDmg = dmgAll - titanDmg;
-                if (outDmg < 100)
-                    outDmg = 0;
-                _data.TitanDmgList.Add(new TitanDmg()
-                {
-                    AttackInfoIdList = atkIdList,
-                    AttackCount = atkCount,
-                    OutDmg = outDmg,
-                    dmg = dmg,
-                    End = DateTime.Now,
-                    Start = _data.LastTime
-                });
-                if (outDmg > 0 && _data.TipDmgOut)
-                {
-                    await SendGroupMsg($"伤害溢出 {outDmg.ShowNum()}");
-                }
-            }
-            else if (atkCount.Count == 0 && atkIdList.Count > 0)
-            {
-                if (_data.TitanDmgList.Count > 0)
-                {
-                    var d = _data.TitanDmgList[^1];
-                    atkIdList.ForEach(i => d.AttackInfoIdList.Add(i));
-                }
-            }
-
-            _data.LastTime = DateTime.Now;
-            return atkCount.Count;
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            return -99;
-        }
-    }
     
+
     private async Task<ClubData> RefreshData()
     {
         ClubData tmp = null;
@@ -576,15 +348,15 @@ public partial class RaidRobotModel : RobotModelBase
                 if (_config.CanUse())
                 {
                     tmp = _post.RaidCurrent(GetModelDir()+"RaidCurrent.json");
-                    var msg = _post.GetForum(GetModelDir() + "GetForum.json");
+                    //var msg = _post.GetForum(GetModelDir() + "GetForum.json");
                     tmp.Init();
                     if (tmp != null)
                     {
                         _club = tmp;
                     }
-                    var all= AttackShareInfo.GetAllAttackShareInfo(msg);
+                    //var all= AttackShareInfo.GetAllAttackShareInfo(msg);
                     await RefreshRaidDataSave();
-                    await RefreshRaidCardDataSave(all);
+                    //await RefreshRaidCardDataSave(all);
                 
                 }
             }
@@ -597,7 +369,30 @@ public partial class RaidRobotModel : RobotModelBase
         });
         return tmp;
     }
-    
+
+    private async void RefreshClubData()
+    {
+        try
+        {
+            if (_config.CanUse())
+            {
+                var tmp = _post.RaidCurrent(GetModelDir() + "RaidCurrent.json");
+                //var msg = _post.GetForum(GetModelDir() + "GetForum.json");
+                tmp.Init();
+                if (tmp != null)
+                {
+                    _club = tmp;
+                }
+                await RefreshRaidDataSave();
+                SaveRaidData();
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+    }
+
     private async Task<AllSoloRaidData> RefreshSoloRaid()
     {
         AllSoloRaidData tmp = null;
@@ -628,6 +423,7 @@ public partial class RaidRobotModel : RobotModelBase
         _post.Tt2Post = _config;
         _data = Load<RaidData>(DataFile);
         _club = LoadCanBeNull<ClubData>("RaidCurrent.json");
+        var config = LoadFormData<Dictionary<string, String>>("Config.json");
         try
         {
             if(_club!=null)
@@ -637,10 +433,13 @@ public partial class RaidRobotModel : RobotModelBase
         {
             Console.WriteLine(e);
         }
-
+        for (var i = _data.AttackInfos.Count - 1; i >= 0; i--)
+        {
+            if(_data.AttackInfos[i].Log==null)
+                _data.AttackInfos.RemoveAt(i);
+        }
         InitStatic();
         RegisterFun();
-        CheckAtkList();
         AllInstance.Add(this);
     }
 
@@ -651,31 +450,54 @@ public partial class RaidRobotModel : RobotModelBase
             DataManage = new ConfigDataManage();
             DataManage.InitJson(GetTextFromData("RaidCardInfo.json"));
         }
-
-        //刷新线程
-        _refreshQueue.Enqueue(this.RefreshClubData);
-        _refreshDataQueue.Enqueue(this);
-        if (_refreshDataTask == null)
-        {
-            _refreshDataTask = Task.Run(StartRefreshClubDataQueue);
-        }
+        InitPostApi();
     }
 
-    private void CheckAtkList()
+    private void InitPostApi()
     {
-        HashSet<int> idSet = new HashSet<int>();
-        for (var i = _data.AttackInfos.Count - 1; i >= 0; i--)
+        PostApi = new TT2PostAPI();
+        PostApi.Group = Group;
+        PostApi.AppToken = _config.AppToken;
+        PostApi.PlayerToken = _config.PlayerToken;
+        PostApi.OnAttack = RefreshRaidCardDataSave;
+        PostApi.OnEx = (s) => OutException(s).Wait();
+        PostApi.OnStart= () =>
         {
-            var d = _data.AttackInfos[i];
-            if (idSet.Contains(d.Id))
-            {
-                _data.AttackInfos.RemoveAt(i);
-            }
-            else
-            {
-                idSet.Add(d.Id);
-            }
-        }
+            ClearRaid().Wait();
+        };
+        PostApi.OnEnd = () =>
+        {
+            EndRaid().Wait();
+        };
+        PostApi.OnCannotConnect = (s) =>
+        {
+            SendGroupMsg("api连接失败" + s).Wait();
+        };
+        PostApi.OnConnect = (s) =>
+        {
+            
+            SendGroupMsg("API连接成功，部落："+s.Split('"')[5]).Wait();
+        };
+        PostApi.OnDisconnect = () =>
+        {
+            SendGroupMsg("api连接断开").Wait();
+        };
+
+        PostApi.OnCycleReset = (date) =>
+        {
+            if (!date.next_reset_at.EndsWith('Z'))
+                date.next_reset_at += "Z";
+            _club.NextAttackTime = DateTime.Parse(date.next_reset_at);
+            RefreshClubData();
+            SendGroupMsg("次数刷新\n" + _club.NextAttackTime).Wait();
+        };
+
+        // PostApi.OnLog = (s) =>
+        // {
+        //     File.AppendAllText(GetModelDir() + "RaidLog.log", s);
+        // };
+        
+        PostApi.StartSocket();
     }
 
     public void RegisterFun()
@@ -697,10 +519,10 @@ public partial class RaidRobotModel : RobotModelBase
             { "导出攻击", UploadAtkInfo },
             { "查询攻击本轮", GetNearAtkInfoThisRound },
             { "本轮时间", GetThisRoundTime },
-            { "分享警告", TipNotShareSwitch },
             { "溢伤警告", TipDmgIsOut },
-            { "分享统计", ShareCountShow },
-            { "重置并导出攻击", ResetAtkInfo }
+            { "重置并导出攻击", ResetAtkInfo },
+            { "清理", ClearMember },
+            { "StopClient", StopClient }
         };
 
         _argLenFun = new Dictionary<string, Func<GroupMsgData, string, Task<SoraMessage>>>()
@@ -720,6 +542,8 @@ public partial class RaidRobotModel : RobotModelBase
             { "移除卡显示", RemoveShowCard },
             { "解析buff文件", ParseBuffInfoFile },
             { "curl", ParseConfigInfoFile },
+            { "AT", SetAppToken },
+            { "PT", SetPlayerToken },
         };
     }
     
@@ -741,7 +565,6 @@ public partial class RaidRobotModel : RobotModelBase
         public List<AttackShareInfo> AttackInfos = new List<AttackShareInfo>();
         public List<string> ShowCard = new List<string>();
         public List<CallMeInfo> CallMe = new List<CallMeInfo> ();
-        public List<TitanDmg> TitanDmgList = new List<TitanDmg>();
         public int AtkCount=30;
         public int LastFromId;
         public bool TipNotShare;
@@ -759,16 +582,7 @@ public partial class RaidRobotModel : RobotModelBase
         public long qq;
         public int type;
     }
-
-    public class TitanDmg
-    {
-        public double OutDmg;
-        public Dictionary<TitanData.PartName, double> dmg=new Dictionary<TitanData.PartName, double>();
-        public List<int> AttackInfoIdList = new List<int>();
-        public Dictionary<string, int> AttackCount = new Dictionary<string, int>();
-        public DateTime End;
-        public DateTime Start;
-    }
+    
 
     public class PlayerData
     {
@@ -778,9 +592,6 @@ public partial class RaidRobotModel : RobotModelBase
         public string Name;
         public int RaidLevel;
         public int AtkCount;
-        public int ShareCount;
-        public int NotShareCount;
-        public int LastNotShareCount;
         public testrobot.PlayerData SourceData;
 
         public string EasyInfo()

@@ -51,20 +51,7 @@ using System.Text.RegularExpressions;
         private int daily_raid_tickets;
 
         public int player_raid_level;
-
-        public class EquipmentData
-        {
-            public string EquipmentCategory;
-            public string LookID;
-
-            public override string ToString()
-            {
-                return $"装备类别: {EquipmentCategory}," +
-                       $"外观: {LookID}";
-            }
-        }
-
-        public List<EquipmentData> equipment;
+        
 
         public int equipment_set_count;
         public string highest_pet_id;
@@ -134,7 +121,6 @@ using System.Text.RegularExpressions;
                    $"部落突袭: {clan_quests_count}\n" +
                    $"城市: {country_code}\n" +
                    $"头像: {current_avatar}\n" +
-                   $"装备: {equipment.ShowAll("\n", "--")}\n" +
                    $"装备数量: {equipment_set_count}\n" +
                    $"最高宠物id: {highest_pet_id}\n" +
                    $"背景id: {player_background_id}\n";

@@ -5,6 +5,9 @@ using System.Drawing;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using robot.RobotModel;
+using robot.SocketTool;
+
 // ReSharper disable All
 #pragma warning disable CS8600
 
@@ -70,6 +73,8 @@ namespace testrobot
             {"RuinousRust","紫雨"},
             {"CelestialStatic","天体"},
             {"MirrorForce","镜像"},
+            {"AstralEcho","回声"},
+            {"PowerBubble","气泡"},
         };
         
         public static Dictionary<string, string> CardEName = new Dictionary<string, string>()
@@ -702,67 +707,7 @@ namespace testrobot
             
         }
         
-        public static void DrawAtkInfo(Dictionary<string, List<AttackShareInfo>> info, string path, string imgPath,bool cardLevel=false)
-        {
-            int max = 0;
-            foreach (var (key, value) in info)
-            {
-                if (value.Count > max)
-                    max = value.Count;
-            }
-
-            int rowH = 96;
-            if (cardLevel)
-                rowH += 32;
-            
-            Bitmap bitmap = new Bitmap(280 + (32 *3+50)* max+50, info.Count * rowH);
-            Graphics g=Graphics.FromImage(bitmap);
-            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
-            g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
-
-            List<string> keys = new List<string>(info.Keys);
-            keys.Sort((x,y)=>
-            {
-                var yy = info[y].Count > 0 ? info[y][0].Data.RaidLevel : 0;
-                var xx = info[x].Count > 0 ? info[x][0].Data.RaidLevel : 0;
-                return yy - xx;
-            });
-            
-            int i = 0;
-            foreach (var k in keys)
-            {
-                var data = info[k];
-                if (i % 2 == 0)
-                {
-                    g.FillRectangle(Brushes.Cornsilk, 0,i * rowH,bitmap.Width,rowH);
-                }
-                var name = k;
-                g.DrawString(Regex.Unescape(name), font, Brushes.Black, 30, i * rowH + 32);
-                int c = 0;
-                foreach (var attack in data)
-                {
-                    g.DrawString((attack.Time+new TimeSpan(8,0,0)).ToString("HH:mm:ss"), font, Brushes.Black, 280+c*(32*3+50), i * rowH + 10);
-                    int d = 0;
-                    foreach (var (card, value) in attack.Data.Card)
-                    {
-
-                        var png = GetImage(imgPath + card + ".png");
-                        if (png != null)
-                            g.DrawImage(png, new Point(280 + c * (32 * 3 + 50) + d * 32, i * rowH + 32));
-                        if(cardLevel)
-                            g.DrawString(value.ToString(), font, Brushes.Green, 
-                                280 + c * (32 * 3 + 50) + d * 32, i * rowH + 64);
-                        d++;
-                    }
-
-                    g.DrawString(attack.Data.Dmg.ShowNum(), font, Brushes.Black, 280+c*(32*3+50), i * rowH + 70+(cardLevel?32:0));
-                    c++;
-                }
-
-                i++;
-            }
-            bitmap.Save(path);
-        }
+        
         
         public static void DrawInfo(Dictionary<string, string> dic, string path,int len=100,float fontSize=15f)
         {
@@ -781,12 +726,169 @@ namespace testrobot
 
                 g.DrawString(key, font, Brushes.Black, 10, i * 32 + 3);
                 g.DrawString(value, font, Brushes.Brown, 290, i * 32 + 3);
-
                 i++;
             }
             bitmap.Save(path);
         }
+
+        public static Rectangle[] atkInfoTitansRect = new Rectangle[]
+        {
+            //头
+            new Rectangle(120, 110, 100, 60),
+            //左手
+            new Rectangle(10, 180, 100, 60),
+            new Rectangle(10, 250, 100, 60),
+            //身
+            new Rectangle(120, 180, 100, 130),
+            //右手
+            new Rectangle(230, 180, 100, 60),
+            new Rectangle(230, 250, 100, 60),
+            //左腿
+            new Rectangle(70, 320, 100, 60),
+            //右腿
+            new Rectangle(180, 320, 100, 60),
+        };
         
+        public static Point[] atkInfoTitansPoint = new Point[]
+        {
+            //头
+            new Point(123, 138),
+            new Point(123, 113),
+            
+            //身
+            new Point(123, 248),
+            new Point(123, 183),
+            
+            new Point(10, 208),
+            new Point(10, 183),
+            
+            new Point(230, 208),
+            new Point(230, 183),
+            
+            new Point(70, 348),
+            new Point(70, 323),
+            
+            new Point(180, 348),
+            new Point(180, 323),
+            
+            new Point(10, 278),
+            new Point(10, 253),
+            
+            new Point(230, 278),
+            new Point(230, 253),
+            
+        };
+        public static void DrawAtkInfo(string path, AttackShareInfo info)
+        {
+            
+            Bitmap bitmap = new Bitmap(350, 400);
+            Graphics g=Graphics.FromImage(bitmap);
+            g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
+            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            DrawAtkInfoInline(g, font, info, 0, 0);
+            bitmap.Save(path);
+        }
+        
+        public static void DrawAtkInfo(Dictionary<string, List<AttackShareInfo>> info, string path, string imgPath,bool cardLevel=false)
+        {
+            int max = 0;
+            foreach (var (key, value) in info)
+            {
+                if (value.Count > max)
+                    max = value.Count;
+            }
+
+            int height = 400;
+
+            Bitmap bitmap = new Bitmap(350*max, info.Count * height);
+            Graphics g=Graphics.FromImage(bitmap);
+            Font font = new Font(FontFamily.GenericMonospace, 15f,FontStyle.Bold);
+            g.FillRectangle(Brushes.White, 0,0,bitmap.Width,bitmap.Height);
+
+            List<string> keys = new List<string>(info.Keys);
+            keys.Sort((x,y)=>
+            {
+                var yy = info[y].Count > 0 ? info[y][0].Data.RaidLevel : 0;
+                var xx = info[x].Count > 0 ? info[x][0].Data.RaidLevel : 0;
+                return yy - xx;
+            });
+            
+            int i = 0;
+            foreach (var k in keys)
+            {
+                var data = info[k];
+                if (i % 2 == 0)
+                {
+                    g.FillRectangle(Brushes.Cornsilk, 0,i * height,bitmap.Width,height);
+                }
+
+                int c = 0;
+                g.DrawString(k, font, Brushes.Black, c*350 + 10, i*height + 3);
+                foreach (var attack in data)
+                {
+                    
+                    DrawAtkInfoInline(g,font,attack,c*350,i*height);
+                    c++;
+                }
+                i++;
+            }
+            bitmap.Save(path);
+        }
+
+        /// <summary>
+        /// atkInfo w=350 h=400
+        /// </summary>
+        /// <param name="g"></param>
+        /// <param name="font"></param>
+        /// <param name="info"></param>
+        /// <param name="startX"></param>
+        /// <param name="startY"></param>
+        public static void DrawAtkInfoInline(Graphics g, Font font, AttackShareInfo info, int startX, int startY)
+        {
+            g.DrawString(info.PlayerName, font, Brushes.Black, startX + 10, startY + 3);
+            g.DrawString(info.Log.attackTime.ToString(), font, Brushes.Black, startX + 10, startY + 28);
+            int c = 0;
+            foreach (var (card, value) in info.Data.Card)
+            {
+                var png = GetImage(RaidRobotModel.Card32Path + card + ".png");
+                if (png != null)
+                    g.DrawImage(png, new Point(startX + 20 + c * (32 + 10), startY + 50));
+                g.DrawString(value.ToString(), font, Brushes.Green,
+                    startX + 23 + c * (32 + 10), startY + 85);
+                c++;
+            }
+
+            g.DrawString($"突等：" + info.Data.RaidLevel, font, Brushes.Black, startX + 160, startY + 55);
+            if (info.Data.Dmg <= 0)
+                info.CalTap();
+            g.DrawString($"伤害：" + info.Data.Dmg.ShowNum(), font, Brushes.Black, startX + 160, startY + 83);
+            g.DrawString((info.index+1).ToString(), font, Brushes.Black, startX + 50, startY + 130);
+            foreach (var rectangle in atkInfoTitansRect)
+            {
+                g.DrawRectangle(Pens.Black,
+                    new Rectangle(rectangle.X + startX, rectangle.Y + startY, rectangle.Width, rectangle.Height));
+            }
+            
+            foreach (var rectangle in atkInfoTitansRect)
+            {
+                g.FillRectangle(Brushes.Black,
+                    new Rectangle(startX + rectangle.X, startY + rectangle.Y + rectangle.Height / 2, rectangle.Width,
+                        rectangle.Height / 2));
+            }
+
+            var part = info.GetPartDmg();
+            foreach (var (p, d) in part)
+            {
+                var i = (int)p;
+                if (i < atkInfoTitansPoint.Length)
+                {
+                    var py = atkInfoTitansPoint[i];
+                    g.DrawString(d.ShowNum(), font, i % 2 == 0 ? Brushes.Azure : Brushes.Brown,
+                        new PointF(startX + py.X, startY + py.Y));
+                }
+            }
+        }
+
         public static void DrawInfo(List<string> list, string path,int len=250)
         {
             Bitmap bitmap = new Bitmap(len, 20+list.Count*32);
@@ -869,7 +971,7 @@ namespace testrobot
                 int c = 0;
                 foreach (var attack in data)
                 {
-                    g.DrawString((attack.Time + new TimeSpan(8, 0, 0)).ToString("HH:mm:ss"), font, Brushes.Black,
+                    g.DrawString((attack.GetTime() + new TimeSpan(8, 0, 0)).ToString("HH:mm:ss"), font, Brushes.Black,
                         280 + c * (32 * 3 + 50), cardStartY + i * 96 + 10);
                     int d = 0;
                     foreach (var (card, value) in attack.Data.Card)
