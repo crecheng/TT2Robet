@@ -215,6 +215,7 @@ public partial class RaidRobotModel : RobotModelBase
                 _data.currentIndex = 0;
                 await SendGroupMsg("突袭结束了");
                 await UploadGroupFile("AtkInfo.png", $"AtkInfo_{DateTime.Now:MM_dd_HH_mm_ss}.png");
+                File.Delete(GetModelDir() + "RaidLog.log");
             }
             catch (Exception e)
             {
