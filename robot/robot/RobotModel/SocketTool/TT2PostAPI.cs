@@ -7,7 +7,7 @@ using testrobot;
 
 namespace robot.SocketTool;
 
-public class TT2PostAPI
+public class TT2PostAPI : IDisposable
 {
     public long Group;
     public SocketIO Client;
@@ -29,6 +29,7 @@ public class TT2PostAPI
     public bool IsAlive;
     public bool IsSuccess;
     public Task SoketTask;
+    private CancellationTokenSource handle;
     public Action<string> OnLog;
     public Action<string> OnCannotConnect;
     public Action<string> OnConnect;
@@ -38,6 +39,21 @@ public class TT2PostAPI
     public Action OnDisconnect;
     public Action OnEnd;
     public Action<string> OnEx;
+    public Action OnConnectFaile;
+    public Task NextConnect;
+    
+    public void Dispose()
+    {
+        Stop();
+        OnLog = null;
+        OnCannotConnect = null;
+        OnStart = null;
+        OnAttack = null;
+        OnCycleReset = null;
+        OnDisconnect = null;
+        OnEnd = null;
+        OnEx = null;
+    }
 
     private static List<string> AllOn = new List<string>()
     {
@@ -61,7 +77,8 @@ public class TT2PostAPI
         try
         {
             Client?.Dispose();
-            
+            Client = null;
+
         }
         catch (Exception e)
         {
@@ -70,7 +87,10 @@ public class TT2PostAPI
 
         try
         {
+            handle?.Cancel();
+            handle = null;
             SoketTask?.Dispose();
+            SoketTask = null;
         }
         catch (Exception e)
         {
@@ -82,7 +102,8 @@ public class TT2PostAPI
     public void StartSocket()
     {
         Stop();
-        SoketTask = SocketIoTest();
+        handle = new CancellationTokenSource();
+        SoketTask =Task.Factory.StartNew( SocketIoTest,handle.Token);
     }
 
     public void CheckReStart()
@@ -90,6 +111,13 @@ public class TT2PostAPI
         if(Client!=null && Client.Connected && IsSuccess)
             return;
         StartSocket();
+    }
+
+    public async Task WaitCheckReStart()
+    {
+        await Task.Delay(60000);
+        CheckReStart();
+        NextConnect = null;
     }
 
     public async Task SocketIoTest()
@@ -100,7 +128,7 @@ public class TT2PostAPI
         Client.Options.Path = "/api";
         Client.Options.Transport = TransportProtocol.WebSocket;
         Client.Options.Reconnection = true;
-        Client.Options.ReconnectionAttempts = 1;
+        Client.Options.ReconnectionAttempts = 5;
         Client.Options.ReconnectionDelay = 20000;
         Client.Options.ExtraHeaders = new Dictionary<string, string>()
         {
@@ -111,6 +139,8 @@ public class TT2PostAPI
         {
             Console.WriteLine($"{Group}: TT2 API Sussed," + response);
             IsAlive = true;
+            var res1 = $"{Connect}: {response}\n\n";
+            OnLog?.Invoke(res1);
             var post = Post();
             Console.WriteLine($"{Group}:Post Result : " + post);
             IsSuccess = post.Contains("ok");
@@ -126,6 +156,8 @@ public class TT2PostAPI
         });
         Client.On(Start, response =>
         {
+            var res1 = $"{Start}: {response}\n\n";
+            OnLog?.Invoke(res1);
             OnStart?.Invoke();
         });
         Client.On(Attack, response =>
@@ -133,6 +165,8 @@ public class TT2PostAPI
             try
             {
                 var res = response.ToString();
+                var res1 = $"{Attack}: {response}\n\n";
+                OnLog?.Invoke(res1);
                 Console.WriteLine($"{Group}:{Attack} : {res}");
                 res = res.Substring(1, res.Length - 2);
                 var atk = JsonConvert.DeserializeObject<AttackAPIInfo>(res);
@@ -149,6 +183,8 @@ public class TT2PostAPI
         {
             try
             {
+                var res1 = $"{Cycle}: {response}\n\n";
+                OnLog?.Invoke(res1);
                 var res = response.ToString();
                 Console.WriteLine($"{Group}:{Cycle} : {res}");
                 res = res.Substring(1, res.Length - 2);
@@ -165,6 +201,8 @@ public class TT2PostAPI
         Client.On(End, response =>
         {
             OnEnd?.Invoke();
+            var res = $"{End}: {response}\n\n";
+            OnLog?.Invoke(res);
         });
         Client.OnDisconnected += OnDisconnectFun;
 
@@ -175,11 +213,20 @@ public class TT2PostAPI
             {
                 var res = $"{onName}: {response}\n\n";
                 OnLog?.Invoke(res);
-                
+                Console.WriteLine(res);
             });
         }
-        Console.WriteLine($"Api连接 {AppToken} || {PlayerToken}");
-        await Client.ConnectAsync();
+        Console.WriteLine($"{Group} Api连接 {AppToken} || {PlayerToken}");
+        try
+        {
+            await Client.ConnectAsync();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"!!!!!!!!!!!!!! {Group}-----{e}");
+            OnConnectFaile?.Invoke();
+        }
+        
         await Task.Delay(-1);
     }
 
@@ -223,6 +270,7 @@ public class TT2PostAPI
 
         return result;
     }
+
 
 
 }

@@ -194,23 +194,34 @@ public partial class RaidRobotModel : RobotModelBase
     {
         if (_data.AttackInfos.Count > 0)
         {
-            var data= GetAtkInfo(DateTime.Now - new TimeSpan(7, 0, 0, 0), DateTime.Now, true);
-            Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
-            foreach (var info in data)
+            try
             {
-                var name = _data.Player[info.Key].Name;
-                if (res.ContainsKey(name))
+                var data= GetAtkInfo(DateTime.Now - new TimeSpan(7, 0, 0, 0), DateTime.Now, true);
+                Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
+                foreach (var info in data)
                 {
-                    name += _data.Player[info.Key].Code;
+                    var name = _data.Player[info.Key].Name;
+                    if (res.ContainsKey(name))
+                    {
+                        name += _data.Player[info.Key].Code;
+                    }
+                    res.Add(name,info.Value);
                 }
-                res.Add(name,info.Value);
+                var f = GetModelDir() + "AtkInfo.png";
+                ClubTool.DrawAtkInfo(res,f,Card32Path,true);
+                _data.AttackInfos.Clear();
+                _data.CallMe.Clear();
+                _data.current = null;
+                _data.currentIndex = 0;
+                await SendGroupMsg("突袭结束了");
+                await UploadGroupFile("AtkInfo.png", $"AtkInfo_{DateTime.Now:MM_dd_HH_mm_ss}.png");
             }
-            var f = GetModelDir() + "AtkInfo.png";
-            ClubTool.DrawAtkInfo(res,f,Card32Path,true);
-            _data.AttackInfos.Clear();
-            _data.CallMe.Clear();
-            await SendGroupMsg("突袭结束了");
-            await UploadGroupFile("AtkInfo.png", $"AtkInfo_{DateTime.Now:MM_dd_HH_mm_ss}.png");
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                await OutException(e);
+            }
+
         }
     }
     
@@ -220,10 +231,9 @@ public partial class RaidRobotModel : RobotModelBase
         _data.CallMe.Clear();
         _club = await RefreshData();
     }
-
     private void RefreshHp(AttackAPIInfo apiInfo)
     {
-        foreach (TitanData.Part p in _club.titan_lords.current.parts)
+        foreach (TitanData.Part p in _data.current.parts)
         {
             var t = apiInfo.raid_state.current.parts.Find((i) => p.part_id == i.part_id);
             if (t != null)
@@ -231,28 +241,21 @@ public partial class RaidRobotModel : RobotModelBase
                 p.current_hp = t.current_hp;
             }
         }
-        _club.titan_lords.current.current_hp = apiInfo.raid_state.current.current_hp;
+        _data.current.current_hp = apiInfo.raid_state.current.current_hp;
+        _data.LastHPTime = apiInfo.attack_log.attackTime;
     }
 
     private async Task RefreshCallMe(int currentIndex, AttackAPIInfo apiInfo)
     {
-        bool isNew = currentIndex != _club.titan_lords.currentIndex;
+        bool isNew = currentIndex != _data.currentIndex;
         if (isNew)
-        {
             _club = await RefreshData();
-        }
         else
-        {
             RefreshHp(apiInfo);
-        }
+        _data.currentIndex = currentIndex;
         if(_data.CallMe.Count<=0)
             return;
-        if (!_club.HaveRaid)
-        {
-            _data.CallMe.Clear();
-            return;
-        }
-        var titan = _club.GetCurrentTitanData().GetBodyInfo();
+        var titan = _data.current.GetBodyInfo();
         SoraMessage msg = "小助手提醒你，打突袭了！\n";
         int c = 0;
         for (var i = _data.CallMe.Count - 1; i >= 0; i--)
@@ -353,6 +356,8 @@ public partial class RaidRobotModel : RobotModelBase
                     if (tmp != null)
                     {
                         _club = tmp;
+                        _data.current = _club.titan_lords.current;
+                        _data.LastHPTime = DateTime.Now;
                     }
                     //var all= AttackShareInfo.GetAllAttackShareInfo(msg);
                     await RefreshRaidDataSave();
@@ -364,6 +369,10 @@ public partial class RaidRobotModel : RobotModelBase
             {
                 Console.WriteLine(e);
                 tmp = null;
+                SoraMessage send = new SoraMessage("/raid/current数据失效，请重新设置！！！\n");
+                if(_config.SupplyQQ!=0)
+                    send.Add(SoraSegment.At(_config.SupplyQQ));
+                await SendGroupMsg(send);
             }
             
         });
@@ -382,6 +391,8 @@ public partial class RaidRobotModel : RobotModelBase
                 if (tmp != null)
                 {
                     _club = tmp;
+                    _data.current = _club.titan_lords.current;
+                    _data.LastHPTime = DateTime.Now;
                 }
                 await RefreshRaidDataSave();
                 SaveRaidData();
@@ -453,8 +464,9 @@ public partial class RaidRobotModel : RobotModelBase
         InitPostApi();
     }
 
-    private void InitPostApi()
+    private async void InitPostApi()
     {
+        await Task.Delay(_lenCd * 5000);
         PostApi = new TT2PostAPI();
         PostApi.Group = Group;
         PostApi.AppToken = _config.AppToken;
@@ -487,16 +499,29 @@ public partial class RaidRobotModel : RobotModelBase
         {
             if (!date.next_reset_at.EndsWith('Z'))
                 date.next_reset_at += "Z";
-            _club.NextAttackTime = DateTime.Parse(date.next_reset_at);
+            var time=DateTime.Parse(date.next_reset_at);
+            try
+            {
+                _club.NextAttackTime = DateTime.Parse(date.next_reset_at);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                
+            }
+            
             RefreshClubData();
-            SendGroupMsg("次数刷新\n" + _club.NextAttackTime).Wait();
+            SendGroupMsg("次数刷新\n下次刷新时间：" + time).Wait();
         };
 
-        // PostApi.OnLog = (s) =>
-        // {
-        //     File.AppendAllText(GetModelDir() + "RaidLog.log", s);
-        // };
-        
+        PostApi.OnLog = (s) =>
+        {
+            File.AppendAllText(GetModelDir() + "RaidLog.log", s);
+        };
+        PostApi.OnConnectFaile = () =>
+        {
+            SendGroupMsg("api连接失败！").Wait();
+        };
         PostApi.StartSocket();
     }
 
@@ -566,6 +591,9 @@ public partial class RaidRobotModel : RobotModelBase
         public List<string> ShowCard = new List<string>();
         public List<CallMeInfo> CallMe = new List<CallMeInfo> ();
         public int AtkCount=30;
+        public TitanData current;
+        public DateTime LastHPTime;
+        public int currentIndex;
         public int LastFromId;
         public bool TipNotShare;
         public bool TipDmgOut;

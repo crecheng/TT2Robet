@@ -124,10 +124,10 @@ public partial class RaidRobotModel
         }
         else
         {
-            if (!_club.HaveRaid)
+            if (!_club.HaveRaid && _data.current==null)
                 return "当前没有突袭";
             var f = GetModelDir() + "kkHp.png";
-            _club.GetCurrentTitanData().DrawTitan(_club,f);
+            _data.current.DrawTitan(_club,f,_data.LastHPTime);
             return Tool.Image(f);
         }
 
@@ -149,7 +149,24 @@ public partial class RaidRobotModel
         {
             if (!_club.HaveRaid)
                 return "当前没有突袭";
+            if (DateTime.Now-_data.LastRefreshTime> TimeSpan.FromMinutes(10))
+            {
+                await SendGroupMsg("获取中。。。");
+                var t = await RefreshData();
+                if (t != null)
+                {
+                    _club = t;
+                    _data.isRefresh = true;
+                    _data.LastRefreshTime = DateTime.Now;
+                }
+                else
+                {
+                    _data.isRefresh = false;
+                    return "失败！";
 
+                }
+            }
+            
             var last = _club.NextAttackTime - new TimeSpan(12, 0, 0);
             var atkInfo = GetAtkInfo(last, DateTime.Now ,true);
             List<string> set = new List<string>(_data.ShowCard);
@@ -374,8 +391,13 @@ public partial class RaidRobotModel
         Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
         foreach (var info in data)
         {
-            if(_data.Player.ContainsKey(info.Key))
-                res.Add(_data.Player[info.Key].Name,info.Value);
+            if (_data.Player.ContainsKey(info.Key))
+            {
+                if(!res.ContainsKey(_data.Player[info.Key].Name))
+                    res.Add(_data.Player[info.Key].Name,info.Value);
+                else
+                    res.Add(_data.Player[info.Key].Name+info.Key,info.Value);
+            }
             else
                 res.Add(info.Key,info.Value);
         }
@@ -474,7 +496,10 @@ public partial class RaidRobotModel
         Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
         foreach (var (key, value) in dic)
         {
-            res.Add(_data.Player[key].Name,value);
+            if(res.ContainsKey(_data.Player[key].Name))
+                res.Add($"{_data.Player[key].Name}_{key}",value);
+            else
+                res.Add(_data.Player[key].Name,value);
         }
         var f = GetModelDir() + "GetAtkInfoByCard.png";
         ClubTool.DrawAtkInfo(res,f,Card32Path);

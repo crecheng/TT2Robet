@@ -30,6 +30,11 @@
             SetTarget(s);
         }
 
+        public RaidAttackTarget()
+        {
+            
+        }
+
         public void SetTarget(string s)
         {
             if(s.Length<8)

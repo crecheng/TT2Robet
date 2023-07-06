@@ -92,7 +92,7 @@ namespace testrobot
             return key;
         }
 
-        public void DrawTitan(ClubData clubData, string name)
+        public void DrawTitan(ClubData clubData, string name,DateTime last)
         {
             List<Rectangle> rects = new List<Rectangle>()
             {
@@ -192,6 +192,9 @@ namespace testrobot
                     $"{RDebuff.Translate(enchant_bonuses[0].BonusType)} {sing}{enchant_bonuses[0].BonusAmount:P2}",
                     fontS, Brushes.Azure, 330, 130);
             }
+
+            if (last > DateTime.MinValue)
+                g.DrawString(last.ToString("HH:mm:ss"), fontS, Brushes.Azure, 10, 430);
             
 
             #endregion
@@ -230,6 +233,7 @@ namespace testrobot
                 g.DrawString(Target.AttackType(i.part_id),font,indianRedBrush,rects[index/2]);
  
             });
+
             bitmap.Save(name);
         }
         
