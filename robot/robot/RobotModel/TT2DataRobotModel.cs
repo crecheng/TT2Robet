@@ -81,11 +81,11 @@ public class TT2DataRobotModel: RobotModelBase
         if(p==null)
             return $"{RobotName}没找到你的数据呐，你需要输入对的代码才能绑定呐";
 
-        Dictionary<string, string> dic = null;
-        if (p.SourceData != null)
-            dic = p.SourceData.GetInfo();
+        //Dictionary<string, string> dic = null;
+        //if (p.SourceData != null)
+        //    dic = p.SourceData.GetInfo();
         var f = DataPath + $"GetMyCard{(++_drawCount) / 20}.png";
-        ClubTool.DrawPlayerCard(p.Name, p.Card, dic, f, RaidRobotModel.Card32Path);
+        ClubTool.DrawPlayerCard(p.Name, p.Card, null, f, RaidRobotModel.Card32Path);
         return Tool.Image(f);
     }
 

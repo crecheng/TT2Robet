@@ -14,7 +14,7 @@ namespace testrobot
     {
         public TT2PostConfig Tt2Post;
         public PlayerData Player;
-        public ClubData Club;
+        public RaidCurrentData Club;
 
         public enum TT2Fun
         {
@@ -39,13 +39,13 @@ namespace testrobot
             return Player = JsonConvert.DeserializeObject<PlayerData>(s);
         }
 
-        public ClubData RaidCurrent(string tmpFile)
+        public RaidCurrentData RaidCurrent(string tmpFile)
         {
             string s = Post(TT2Fun.RaidCurrent);
             if (s.Length < 200)
                 OutError("PlayerProfile");
             File.WriteAllText(tmpFile,s);
-            return Club = JsonConvert.DeserializeObject<ClubData>(s);
+            return Club = JsonConvert.DeserializeObject<RaidCurrentData>(s);
         }
 
         public MsgDataList GetForum(string tmpFile)

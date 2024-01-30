@@ -3,10 +3,10 @@ using System.Collections.Generic;
 
 namespace testrobot
 {
-    public class ClubData
+    public class RaidCurrentData
     {
         public double clan_advanced_start;
-        public ClubInfo clan_raid;
+        public ClubRaidInfo clan_raid;
         public RaidInfo titan_lords;
         public PlayerRaid player_raid;
         public int clan_raid_tickets;
@@ -86,44 +86,17 @@ namespace testrobot
         }
     }
 
-    public class ClubInfo
+    public class ClubRaidInfo
     {
         public string area_id;
-        public List<Bonuses> bonuses;
-        public BoostBonus boost_bonus;
-        
-        
-        public class Bonuses
-        {
-            public double BonusAmount;
-            public string BonusType;
-            public string Suffix;
-
-            public override string ToString()
-            {
-                return $"{nameof(BonusAmount)}: {BonusAmount}\n" +
-                       $" {nameof(BonusType)}: {BonusType}\n" +
-                       $" {nameof(Suffix)}: {Suffix}\n";
-            }
-        }
-        public class BoostBonus
-        {
-            public double BonusAmount;
-            public string BonusType;
-
-            public override string ToString()
-            {
-                return $"{nameof(BonusAmount)}: {BonusAmount}\n" +
-                   $" {nameof(BonusType)}: {BonusType}\n";
-            }
-        }
-
+        public List<Bonus> bonuses;
+        public Bonus boost_bonus;
         public int boost_tickets;
         public string clan_code;
         public string created_at;
         public string created_at_utc;
         public object finalization_started_at_utc;
-        public List<PlayerData> leaderboard;
+        public List<AttackShowInfo> leaderboard;
         public int level;
         public int max_potential_raid_attacks;
         public string raid_active_at_utc;
@@ -133,10 +106,12 @@ namespace testrobot
         public string raid_retired_at_utc;
         public bool isShowPlayer = false;
 
-        public List<BoostBonus> special_card_info;
+        public List<Bonus> special_card_info;
         public string state;
         public int tier;
         public bool was_highest_completed_raid;
+        
+        
 
         public override string ToString()
         {

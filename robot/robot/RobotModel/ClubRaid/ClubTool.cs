@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using robot;
 using robot.RobotModel;
 using robot.SocketTool;
 
@@ -20,18 +21,23 @@ namespace testrobot
         public static List<int> CardCost = new List<int>()
         {
             0,
-            20, 125, 280, 480, 760,
-            1100, 1660, 2350, 3150, 4250,
-            5600, 7250, 9150, 11950, 15600,
-            19500, 23585, 27775, 32050, 36700,
-            41500, 46700, 52050, 57470, 62980,
-            68580, 74270, 80100, 86945, 93850,
-            100820, 107850, 114940, 122095, 129315,
-            136595, 143940, 151405, 159490, 167705,
-            175980, 184320, 194820, 205620, 216570,
-            227670, 239070, 250620, 262320, 274320,
-            286620, 299220, 312120, 325320, 338820,
-            352620, 366720, 381120, 395820, 410820,
+            45, 100, 160, 260, 380,
+            580, 830, 1130, 1530, 1980, 
+            2530, 3230, 4230, 5580, 6980,
+            8405, 9855, 11330, 12980, 14680,
+            16480, 18330, 20230, 22180, 24180,
+            26230, 28380, 30825, 33290, 35780,
+            38290, 40820, 43375, 45955, 48555,
+            51180, 53845, 56730, 59665, 62620,
+            65600, 69100, 72700, 76350, 80050,
+            83850, 87700,91600, 95600, 99700,
+            103900, 108200, 112600, 117100, 121700,
+            126400, 131200, 136100, 141100, 146300,
+            151700, 157300, 163100, 169100, 175300,
+            181700, 188300, 195100, 202100, 209400,
+            217000, 224900, 233100, 241600, 250400,
+            259500, 268900, 278600, 288650,
+
         };
 
         private static Dictionary<string, Image> _imageCache = new Dictionary<string, Image>();
@@ -330,7 +336,7 @@ namespace testrobot
             return key;
         }
         public static void DrawPlayerRaidDmg(
-            ClubData club,
+            RaidCurrentData club,
             string path,
             int count,
             Dictionary<string,List<string>> showCard=null,
@@ -373,17 +379,24 @@ namespace testrobot
             });
             
             double needAverage = club.titan_lords.GetNeedAllDmg()/Players.Count/MaxCount;
-            double currentAverage = allDmg / allAttack;
+            double currentAverage = 0;
+            if(allAttack!=0)
+                currentAverage= allDmg / allAttack;
             g.DrawString(allDmg.ShowNum(),font,greenBrush,30,10);
             g.DrawString($"{currentAverage.ShowNum()} / {needAverage.ShowNum()}", font,
                 currentAverage > needAverage ? Brushes.Indigo : Brushes.Red, 30, 30);
             g.DrawString(MaxCount.ToString(), font, Brushes.HotPink, 380, 10);
-
+            
+            Regex _regex = new Regex(@"\\u([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            
             for (int i = 1; i <= Players.Count; i++)
             {
                 var p = Players[i-1];
                 var y = rect.Y + i * (height + 5);
-                double average = p.score/p.num_attacks;
+
+                double average = 0;
+                if (p.num_attacks != 0)
+                    average = p.score / p.num_attacks;
                 double dec = average - needAverage;
                 Rectangle fill=new Rectangle();
                 fill.Y = y;
@@ -399,8 +412,11 @@ namespace testrobot
                     fill.X = rect.X - fill.Width;
                 }
 
+                if (average == 0)
+                    fill.Width = 0;
+
                 g.FillRectangle(brush1,fill);
-                g.DrawString(Regex.Unescape(p.name),font,greenBrush,30,y+2);
+                g.DrawString(p.name.Unescape(_regex),font,greenBrush,30,y+2);
                 g.DrawString(dec.ShowNum(),font,greenBrush,280,y+2);
                 g.DrawString(p.num_attacks.ToString(),font,Brushes.HotPink, 380,y+2);
 
@@ -583,6 +599,7 @@ namespace testrobot
             Graphics g = Graphics.FromImage(bitmap);
             Font font = new Font(FontFamily.GenericMonospace, 15f, FontStyle.Bold);
             g.FillRectangle(Brushes.White, 0, 0, bitmap.Width, bitmap.Height);
+            Regex _regex = new Regex(@"\\u([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             for (var i = 0; i < player.Count; i++)
             {
                 if (i % 2 == 0)
@@ -591,7 +608,7 @@ namespace testrobot
                 }
 
                 var name = player[i];
-                g.DrawString(Regex.Unescape(name), font, Brushes.Black, 30, i * 64 + 10);
+                g.DrawString(name.Unescape(_regex), font, Brushes.Black, 30, i * 64 + 10);
                 int c = 0;
                 foreach (var card in cardName)
                 {
@@ -648,6 +665,7 @@ namespace testrobot
             Graphics g = Graphics.FromImage(bitmap);
             Font font = new Font(FontFamily.GenericMonospace, 15f, FontStyle.Bold);
             g.FillRectangle(Brushes.White, 0, 0, bitmap.Width, bitmap.Height);
+            Regex _regex = new Regex(@"\\u([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             for (var i = 0; i < player.Count; i++)
             {
                 if (i % 2 == 0)
@@ -656,7 +674,7 @@ namespace testrobot
                 }
 
                 var name = player[i];
-                g.DrawString(Regex.Unescape(name), font, Brushes.Black, 30, i * 64 + 10);
+                g.DrawString(name.Unescape(_regex), font, Brushes.Black, 30, i * 64 + 10);
                 int c = 0;
                 foreach (var card in cardName)
                 {
@@ -959,6 +977,7 @@ namespace testrobot
             int cardStartY = 20 + (maxRow+1) * 32;
             
             i = 0;
+            Regex _regex = new Regex(@"\\u([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             foreach (var k in atkInfo)
             {
                 var data = k.Value;
@@ -967,7 +986,7 @@ namespace testrobot
                 {
                     g.FillRectangle(Brushes.Cornsilk, 0,cardStartY+i * 96,bitmap.Width,96);
                 }
-                g.DrawString(Regex.Unescape(name), font, Brushes.Black, 30, cardStartY+i * 96 + 32);
+                g.DrawString(name.Unescape(_regex), font, Brushes.Black, 30, cardStartY+i * 96 + 32);
                 int c = 0;
                 foreach (var attack in data)
                 {

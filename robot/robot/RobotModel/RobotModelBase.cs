@@ -79,8 +79,17 @@ public class RobotModelBase
         {
             return Activator.CreateInstance<T>();
         }
-        return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
-
+        T data = default;
+        try
+        {
+            data = JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return Activator.CreateInstance<T>();
+        }
+        return data;
     }
 
     public T LoadFormData<T>(string path)
@@ -90,7 +99,17 @@ public class RobotModelBase
         {
             return default;
         }
-        return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
+        T data = default;
+        try
+        {
+            data = JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            
+        }
+        return data;
     }
 
     public string GetTextFromData(string path)
@@ -120,7 +139,18 @@ public class RobotModelBase
         {
             return default;
         }
-        return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
+
+        T data = default;
+        try
+        {
+            data = JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            
+        }
+        return data;
 
     }
 

@@ -72,10 +72,12 @@ public class TT2PostAPI : IDisposable
         Target,
     };
 
-    public void Stop()
+    public async Task Stop()
     {
         try
         {
+            if(Client!=null)
+                await Client.DisconnectAsync();
             Client?.Dispose();
             Client = null;
 
@@ -99,24 +101,24 @@ public class TT2PostAPI : IDisposable
         }
     }
 
-    public void StartSocket()
+    public async Task StartSocket()
     {
-        Stop();
+        await Stop();
         handle = new CancellationTokenSource();
         SoketTask =Task.Factory.StartNew( SocketIoTest,handle.Token);
     }
 
-    public void CheckReStart()
+    public async Task CheckReStart()
     {
         if(Client!=null && Client.Connected && IsSuccess)
             return;
-        StartSocket();
+        await StartSocket();
     }
 
     public async Task WaitCheckReStart()
     {
         await Task.Delay(60000);
-        CheckReStart();
+        await CheckReStart();
         NextConnect = null;
     }
 
@@ -165,9 +167,9 @@ public class TT2PostAPI : IDisposable
             try
             {
                 var res = response.ToString();
-                var res1 = $"{Attack}: {response}\n\n";
+                var res1 = $"{Attack}-\n\n";
                 OnLog?.Invoke(res1);
-                Console.WriteLine($"{Group}:{Attack} : {res}");
+                Console.WriteLine($"{Group} : {Attack} ");
                 res = res.Substring(1, res.Length - 2);
                 var atk = JsonConvert.DeserializeObject<AttackAPIInfo>(res);
                 OnAttack?.Invoke(atk);

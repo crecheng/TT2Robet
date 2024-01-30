@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
+using robot;
 using robot.SocketTool;
 
 namespace testrobot
@@ -102,7 +103,7 @@ namespace testrobot
             Log = info.attack_log;
             Log.attackTime=DateTime.Parse(Log.attack_datetime);
             Player = info.player.player_code;
-            PlayerName = Regex.Unescape(info.player.name);
+            PlayerName = info.player.name.Unescape();
             Data = new DmgData();
             Data.RaidLevel = info.player.raid_level;
             index = info.raid_state.titan_index;

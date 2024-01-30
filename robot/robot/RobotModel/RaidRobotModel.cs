@@ -17,7 +17,7 @@ public partial class RaidRobotModel : RobotModelBase
     public static string Card64Path = "Data\\RaidRobotModel\\Card-64\\";
     public static List<RaidRobotModel> AllInstance = new List<RaidRobotModel>();
     public static ConfigDataManage DataManage;
-    private ClubData _club;
+    private RaidCurrentData _club;
     private TT2Post _post;
     private TT2PostConfig _config;
     
@@ -53,6 +53,7 @@ public partial class RaidRobotModel : RobotModelBase
                 var arg = data.Text.Substring(_startString.Length);
                 SetIsAutoRefresh(data, arg);
                 await ShowUesClub(data, arg);
+                await ApiReConnectAll(data, arg);
                 if (_argFun.ContainsKey(arg))
                     return await _argFun[arg].Invoke(data);
 
@@ -112,6 +113,24 @@ public partial class RaidRobotModel : RobotModelBase
         }
     }
     
+    private async Task ApiReConnectAll(GroupMsgData data, string arg)
+    {
+        if (data.IsAdmin )
+        {
+            if (arg == "重连全部api")
+            {
+                string s = string.Empty;
+                await SendGroupMsg("开始重连");
+                foreach (var raidRobotModel in AllInstance)
+                {
+                    await raidRobotModel.PostApi.Stop();
+                    await Task.Delay(10000);
+                    await raidRobotModel.PostApi.CheckReStart();
+                }
+            }
+        }
+    }
+    
     private string GetNearAtkInfo(DateTime start, DateTime end,bool allPlayer=false)
     {
         int c = 0;
@@ -124,14 +143,19 @@ public partial class RaidRobotModel : RobotModelBase
         if (c == 0)
             return string.Empty;
         Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
-        foreach (var info in all)
+        foreach (var (key, value) in all)
         {
-            var name = _data.Player[info.Key].Name;
-            if (res.ContainsKey(name))
+            string playerName;
+            if (_data.Player.TryGetValue(key, out var playerData))
+                playerName = playerData.Name;
+            else
+                playerName = key;
+            
+            if (res.ContainsKey(playerName))
             {
-                name += _data.Player[info.Key].Code;
+                playerName += key;
             }
-            res.Add(name,info.Value);
+            res.Add(playerName,value);
         }
         var f = GetModelDir() + "AtkInfo.png";
         ClubTool.DrawAtkInfo(res,f,Card32Path);
@@ -162,6 +186,8 @@ public partial class RaidRobotModel : RobotModelBase
 
         return all;
     }
+    
+    private static Regex _regex = new Regex(@"\\u([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private async Task RefreshRaidDataSave()
     {
@@ -173,7 +199,8 @@ public partial class RaidRobotModel : RobotModelBase
         foreach (var playerData in _club.clan_raid.leaderboard)
         {
             var id = playerData.player_code;
-            var name = Regex.Unescape(playerData.name);
+            var name = _regex.Replace(playerData.name,
+                x => Convert.ToChar(Convert.ToUInt16(x.Result("$1"), 16)).ToString());
             if(!_data.PlayerId.ContainsKey(name))
                 _data.PlayerId.Add(name,id);
             if(!_data.Player.ContainsKey(id))
@@ -182,9 +209,8 @@ public partial class RaidRobotModel : RobotModelBase
                     Code = id,
                     Name = name
                 });
-            _data.ClubName = Regex.Unescape(playerData.clan_name);
+            _data.ClubName = name;
             _data.Player[id].Name = name;
-            _data.Player[id].RaidLevel = playerData.player_raid_level;
             _data.Player[id].SourceData = playerData;
         }
 
@@ -234,6 +260,8 @@ public partial class RaidRobotModel : RobotModelBase
     }
     private void RefreshHp(AttackAPIInfo apiInfo)
     {
+        if(_data.current==null)
+            return;
         foreach (TitanData.Part p in _data.current.parts)
         {
             var t = apiInfo.raid_state.current.parts.Find((i) => p.part_id == i.part_id);
@@ -266,12 +294,18 @@ public partial class RaidRobotModel : RobotModelBase
             {
                 if (info.type == 99 && isNew)
                 {
+                    if (c == 0)
+                        msg.Add("新王了！\n");
+                    
                     c++;
                     msg.Add(SoraSegment.At(info.qq));
                     _data.CallMe.RemoveAt(i);
                 }
                 else if (titan.blue >= info.type)
                 {
+                    if (c == 0)
+                        msg.Add($"{titan.blue}蓝了！\n");
+                    
                     c++;
                     msg.Add(SoraSegment.At(info.qq));
                     _data.CallMe.RemoveAt(i);
@@ -281,6 +315,8 @@ public partial class RaidRobotModel : RobotModelBase
             {
                 if (titan.bone <= info.type)
                 {
+                    if (c == 0)
+                        msg.Add($"{-titan.bone}骨了！\n");
                     c++;
                     msg.Add(SoraSegment.At(info.qq));
                     _data.CallMe.RemoveAt(i);
@@ -342,9 +378,9 @@ public partial class RaidRobotModel : RobotModelBase
     }
     
 
-    private async Task<ClubData> RefreshData()
+    private async Task<RaidCurrentData> RefreshData()
     {
-        ClubData tmp = null;
+        RaidCurrentData tmp = null;
         await Task.Run(async () =>
         {
             try
@@ -434,7 +470,7 @@ public partial class RaidRobotModel : RobotModelBase
         _post = new TT2Post();
         _post.Tt2Post = _config;
         _data = Load<RaidData>(DataFile);
-        _club = LoadCanBeNull<ClubData>("RaidCurrent.json");
+        _club = LoadCanBeNull<RaidCurrentData>("RaidCurrent.json");
         var config = LoadFormData<Dictionary<string, String>>("Config.json");
         try
         {
@@ -512,7 +548,8 @@ public partial class RaidRobotModel : RobotModelBase
             }
             
             RefreshClubData();
-            SendGroupMsg("次数刷新\n下次刷新时间：" + time).Wait();
+            SendGroupMsg(new SoraMessage(SoraSegment.AtAll(),"次数刷新\n下次刷新时间\n" + time)).Wait();
+            LookDmgImg();
         };
 
         PostApi.OnLog = (s) =>
@@ -523,8 +560,9 @@ public partial class RaidRobotModel : RobotModelBase
         {
             SendGroupMsg("api连接失败！").Wait();
         };
-        PostApi.StartSocket();
+        await PostApi.StartSocket();
     }
+    
 
     public void RegisterFun()
     {
@@ -535,10 +573,10 @@ public partial class RaidRobotModel : RobotModelBase
             { "伤害", LookDmg },
             { "卡名字", ShowCardName },
             { "卡显示", GetShowCard },
-            { "通配卡", ShowWildCard },
+            //{ "通配卡", ShowWildCard },
             { "突袭刷新", RefreshData },
             { "查看突袭config", GetRaidConfig },
-            { "我的数据", GetMyInfo },
+            //{ "我的数据", GetMyInfo },
             { "卡片数据", ShowMyCard },
             { "全员卡", GetAllCard },
             { "导出全员卡", UploadAllCard },
@@ -548,7 +586,7 @@ public partial class RaidRobotModel : RobotModelBase
             { "溢伤警告", TipDmgIsOut },
             { "重置并导出攻击", ResetAtkInfo },
             { "清理", ClearMember },
-            { "StopClient", StopClient }
+            { "重连api", ReStartClient }
         };
 
         _argLenFun = new Dictionary<string, Func<GroupMsgData, string, Task<SoraMessage>>>()
@@ -557,8 +595,8 @@ public partial class RaidRobotModel : RobotModelBase
             { "设置次数", SetAtkCount },
             { "叫我", CallMeWhile },
             { "个突", ShowSoloRaid },
-            { "突袭模拟", RaidCardCal },
-            { "导入个人数据", InputPlayerData },
+            //{ "突袭模拟", RaidCardCal },
+            //{ "导入个人数据", InputPlayerData },
             { "查询攻击时间", GetNearAtkInfo },
             { "查询攻击卡片", GetAtkInfoByCard },
             { "查询血量变动", LookLastHPChange },
@@ -566,7 +604,7 @@ public partial class RaidRobotModel : RobotModelBase
             { "查看卡", ShowCardInfo },
             { "添加卡显示", AddShowCard },
             { "移除卡显示", RemoveShowCard },
-            { "解析buff文件", ParseBuffInfoFile },
+            //{ "解析buff文件", ParseBuffInfoFile },
             { "curl", ParseConfigInfoFile },
             { "AT", SetAppToken },
             { "PT", SetPlayerToken },
@@ -621,7 +659,7 @@ public partial class RaidRobotModel : RobotModelBase
         public string Name;
         public int RaidLevel;
         public int AtkCount;
-        public testrobot.PlayerData SourceData;
+        public AttackShowInfo SourceData;
 
         public string EasyInfo()
         {

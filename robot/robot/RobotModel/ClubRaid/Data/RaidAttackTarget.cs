@@ -97,36 +97,36 @@
         {
             switch (part)
             {
+                case TitanData.PartName.BodyHead:return false;
                 case TitanData.PartName.ArmorHead:
-                case TitanData.PartName.BodyHead:
                     return Head !='1';
                     break;
+                case TitanData.PartName.BodyChestUpper:return false;
                 case TitanData.PartName.ArmorChestUpper:
-                case TitanData.PartName.BodyChestUpper:
                     return Body !='1';
                     break;
+                case TitanData.PartName.BodyArmUpperRight:return false;
                 case TitanData.PartName.ArmorArmUpperRight:
-                case TitanData.PartName.BodyArmUpperRight:
                     return LArm !='1';
                     break;
+                case TitanData.PartName.BodyArmUpperLeft:return false;
                 case TitanData.PartName.ArmorArmUpperLeft:
-                case TitanData.PartName.BodyArmUpperLeft:
                     return RArm !='1';
                     break;
+                case TitanData.PartName.BodyHandRight:return false;
                 case TitanData.PartName.ArmorHandRight:
-                case TitanData.PartName.BodyHandRight:
                     return LHand !='1';
                     break;
+                case TitanData.PartName.BodyHandLeft:return false;
                 case TitanData.PartName.ArmorHandLeft:
-                case TitanData.PartName.BodyHandLeft:
                     return RHand !='1';
                     break;
+                case TitanData.PartName.BodyLegUpperRight:return false;
                 case TitanData.PartName.ArmorLegUpperRight:
-                case TitanData.PartName.BodyLegUpperRight:
                     return LLeg !='1';
                     break;
+                case TitanData.PartName.BodyLegUpperLeft:return false;
                 case TitanData.PartName.ArmorLegUpperLeft:
-                case TitanData.PartName.BodyLegUpperLeft:
                     return RLeg !='1';
                     break;
             }

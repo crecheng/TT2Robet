@@ -1,4 +1,5 @@
-﻿using Sora.Entities;
+﻿using System.Text.RegularExpressions;
+using Sora.Entities;
 using Sora.Entities.Segment;
 using Sora.Util;
 
@@ -39,7 +40,19 @@ public static class Tool
     {
         return SoraSegment.Image($"{AppDomain.CurrentDomain.BaseDirectory}\\{path}");
     }
+
+    public static string Unescape(this string text)
+    {
+        return new Regex(@"\\u([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.Compiled).Replace(
+            text, x => Convert.ToChar(Convert.ToUInt16(x.Result("$1"), 16)).ToString());
+    }
     
+    public static string Unescape(this string text,Regex regex)
+    {
+        return regex.Replace(
+            text, x => Convert.ToChar(Convert.ToUInt16(x.Result("$1"), 16)).ToString());
+    }
+
     public static SoraSegment RandomImage(string path)
     {
         return Image(GetRandomName(path));

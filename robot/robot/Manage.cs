@@ -39,7 +39,15 @@ public static class Manage
 
     public async static Task SendGroupMsg(long group, MessageBody body)
     {
-        await Api.SendGroupMessage(group, body);
+        try
+        {
+            await Api.SendGroupMessage(group, body);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            await File.AppendAllTextAsync("error.log",e.ToString());
+        }
     }
 
     public async static Task OutException(string s)
@@ -47,9 +55,17 @@ public static class Manage
         await SendGroupMsg(_adminGroup,new SoraMessage(s).GetSendMsg());
     }
 
-    public async static Task UploadFile(long group, string file,string upName)
+    public async static Task UploadFile(long group, string file, string upName)
     {
-        await Api.UploadGroupFile(group, $"{AppDomain.CurrentDomain.BaseDirectory}{file}" , upName);
+        try
+        {
+            await Api.UploadGroupFile(group, $"{AppDomain.CurrentDomain.BaseDirectory}{file}", upName);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            await File.AppendAllTextAsync("error.log", e.ToString());
+        }
     }
 
     public async static Task SendGroupMsg(long group, SoraMessage body)

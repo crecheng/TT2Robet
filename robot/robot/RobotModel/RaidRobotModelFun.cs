@@ -26,10 +26,11 @@ public partial class RaidRobotModel
                 return "API没有APPToken或PlayerToken";
             await SendGroupMsg("刷新ing");
             var t = await RefreshData();
-            PostApi.CheckReStart();
+            await PostApi.CheckReStart();
             if (t != null)
             {
                 _club = t;
+                _data.current = _club.titan_lords.current;
                 _data.isRefresh = true;
                 _data.FailCount = 0;
                 return "刷新成功！";
@@ -85,8 +86,8 @@ public partial class RaidRobotModel
             {
                 var p = _data.Player[id];
                 string b = "未知";
-                if (p.SourceData != null)
-                    b = p.SourceData.raid_wildcard_count.ToString();
+                //if (p.SourceData != null)
+                //    b = p.SourceData.raid_wildcard_count.ToString();
                 dic.Add(p.Name, $"{b}\t{p.RaidLevel}");
             }
             var f= GetModelDir() + "ShowWildCard.png";
@@ -194,8 +195,66 @@ public partial class RaidRobotModel
                 Card32Path);
             return Tool.Image(f);
         }
+    }
 
-        await Task.CompletedTask;
+    private async void LookDmgImg()
+    {
+        SoraMessage msg = default;
+        bool send = false;
+        if (_club == null)
+        {
+            return ;
+        }
+        else
+        {
+            if (!_club.HaveRaid)
+                return ;
+            
+            var t = await RefreshData();
+            if (t != null)
+            {
+                _club = t;
+                _data.isRefresh = true;
+                _data.LastRefreshTime = DateTime.Now;
+            }
+            else
+            {
+                _data.isRefresh = false;
+                return ;
+
+            }
+
+            var last = _club.NextAttackTime - new TimeSpan(12, 0, 0);
+            var atkInfo = GetAtkInfo(last, DateTime.Now ,true);
+            List<string> set = new List<string>(_data.ShowCard);
+            Dictionary<string, List<string>> showCard = new Dictionary<string, List<string>>();
+            foreach (var (key, list) in atkInfo)
+            {
+                set.Clear();
+                set.AddRange(_data.ShowCard);
+                foreach (var info in list)
+                {
+                    foreach (var (card, value) in info.Data.Card)
+                    {
+                        set.Remove(card);
+                    }
+                }
+
+                if (set.Count > 0)
+                    showCard.Add(key,new List<string>(set));
+                
+            }
+
+
+            var f = GetModelDir() + "kkDmg.png";
+            ClubTool.DrawPlayerRaidDmg(_club, f, _data.AtkCount, showCard, _data.ShowCard.Count,
+                Card32Path);
+            msg= Tool.Image(f);
+            send = true;
+        }
+
+        if(send) 
+            await SendGroupMsg(msg);
     }
 
     private async Task<SoraMessage> GetCmd(GroupMsgData data)
@@ -240,20 +299,20 @@ public partial class RaidRobotModel
     /// <returns></returns>
     private async Task<SoraMessage> GetMyInfo(GroupMsgData data)
     {
-        if (_data.QQLink.ContainsKey(data.Sender))
-        {
-            var player = _data.Player[_data.QQLink[data.Sender]];
-            if (player.SourceData != null)
-            {
-                var info = player.SourceData.GetInfo();
-                var f = GetModelDir() + $"GetMyInfo{showMyCardCount++ % 5}.png";
-                ClubTool.DrawInfo(info,f,150);
-                return Tool.Image(f);
-            }
-            else
-                return player.EasyInfo();
-        }
-
+        // if (_data.QQLink.ContainsKey(data.Sender))
+        // {
+        //     var player = _data.Player[_data.QQLink[data.Sender]];
+        //     if (player.SourceData != null)
+        //     {
+        //         var info = player.SourceData.GetInfo();
+        //         var f = GetModelDir() + $"GetMyInfo{showMyCardCount++ % 5}.png";
+        //         ClubTool.DrawInfo(info,f,150);
+        //         return Tool.Image(f);
+        //     }
+        //     else
+        //         return player.EasyInfo();
+        // }
+        //
         return "你还没绑定";
         await Task.CompletedTask;
     }
@@ -272,9 +331,9 @@ public partial class RaidRobotModel
                 return "你还没卡片数据";
             var f = GetModelDir() + $"ShowMyCard{showMyCardCount++ % 5}.png";
             Dictionary<string, string> dic = null;
-            if (p.SourceData != null)
-                dic = p.SourceData.GetInfo();
-            ClubTool.DrawPlayerCard(p.Name, p.Card, dic, f, Card32Path);
+            //if (p.SourceData != null)
+            //    dic = p.SourceData.GetInfo();
+            ClubTool.DrawPlayerCard(p.Name, p.Card, null, f, Card32Path);
             return Tool.Image(f);
         }
 
@@ -494,12 +553,19 @@ public partial class RaidRobotModel
             return "没有数据";
         
         Dictionary<string, List<AttackShareInfo>> res = new Dictionary<string, List<AttackShareInfo>>();
+        string playerName;
+        PlayerData player;
         foreach (var (key, value) in dic)
         {
-            if(res.ContainsKey(_data.Player[key].Name))
-                res.Add($"{_data.Player[key].Name}_{key}",value);
+            if (!_data.Player.TryGetValue(key, out player))
+                playerName = key;
             else
-                res.Add(_data.Player[key].Name,value);
+                playerName = player.Name;
+            
+            if(res.ContainsKey(playerName))
+                res.Add($"{playerName}_{key}",value);
+            else
+                res.Add(playerName,value);
         }
         var f = GetModelDir() + "GetAtkInfoByCard.png";
         ClubTool.DrawAtkInfo(res,f,Card32Path);
@@ -1109,83 +1175,83 @@ public partial class RaidRobotModel
 
     private async Task<SoraMessage> InputPlayerData(GroupMsgData data, string other)
     {
-        if (string.IsNullOrEmpty(other))
-        {
-            return "需要解析数据，发送解析数据需要带此命令开头\nwww.crecheng.top/PlayOutput.html";
-        }
-        var pair= other.Split("/");
-        Dictionary<string, string> dic = new Dictionary<string, string>();
-        foreach (var s in pair)
-        {
-            if(s.Length<=1)
-                continue;
-            var ss = s.Split('-');
-            dic.Add(ss[0], ss[1]);
-        }
-
-        int raid = int.Parse(dic["RaidLevel"]);
-        int totle = int.Parse(dic["TotalRaidCardLevels"]);
-        int skill = int.Parse(dic["SkillPointsOwned"]);
-        int scroll = int.Parse(dic["HeroScrollUpgrades"]);
-        int weapon = int.Parse(dic["HeroWeaponUpgrades"]);
-        int pet = int.Parse(dic["TotalPetLevels"]);
-        PlayerData playerData = null;
-        foreach (var (key, value) in _data.Player)
-        {
-            if (value.SourceData == null)
-            {
-                continue;
-            }
-
-            if (value.SourceData.player_raid_level == raid)
-            {
-                if (value.SourceData.total_card_level==totle
-                    && value.SourceData.total_skill_points==skill
-                    && value.SourceData.total_helper_weapons==weapon
-                    && value.SourceData.total_helper_scrolls==scroll
-                    && value.SourceData.total_pet_levels==pet
-                    )
-                {
-                    playerData = value;
-                }
-            }
-        }
-
-        if (playerData == null)
-        {
-            string ret = "没有找到对应玩家";
-            if (!_club.HaveRaid)
-                ret += "\n当前没有突袭，请在打突袭时导入";
-            return ret;
-        }
-
-        int t = 0;
-        foreach (var (key,value) in ClubTool.CardEName)
-        {
-            if (dic.ContainsKey(key))
-            {
-                t+=Int32.Parse(dic[key]);
-            }
-            else
-            {
-                Console.WriteLine(key);
-            }
-        }
-
-        if (t != totle)
-            return "请不要自77人";
-        foreach (var (key,value) in ClubTool.CardEName)
-        {
-            if (dic.ContainsKey(key))
-            {
-                if (playerData.Card.ContainsKey(value))
-                    playerData.Card[value]=Int32.Parse(dic[key]);
-                else
-                    playerData.Card.Add(value, Int32.Parse(dic[key]));
-            }
-        }
-
-        return "更新成功，建议撤回";
+        // if (string.IsNullOrEmpty(other))
+        // {
+        //     return "需要解析数据，发送解析数据需要带此命令开头\nwww.crecheng.top/PlayOutput.html";
+        // }
+        // var pair= other.Split("/");
+        // Dictionary<string, string> dic = new Dictionary<string, string>();
+        // foreach (var s in pair)
+        // {
+        //     if(s.Length<=1)
+        //         continue;
+        //     var ss = s.Split('-');
+        //     dic.Add(ss[0], ss[1]);
+        // }
+        //
+        // int raid = int.Parse(dic["RaidLevel"]);
+        // int totle = int.Parse(dic["TotalRaidCardLevels"]);
+        // int skill = int.Parse(dic["SkillPointsOwned"]);
+        // int scroll = int.Parse(dic["HeroScrollUpgrades"]);
+        // int weapon = int.Parse(dic["HeroWeaponUpgrades"]);
+        // int pet = int.Parse(dic["TotalPetLevels"]);
+        // PlayerData playerData = null;
+        // foreach (var (key, value) in _data.Player)
+        // {
+        //     if (value.SourceData == null)
+        //     {
+        //         continue;
+        //     }
+        //
+        //     if (value.SourceData.player_raid_level == raid)
+        //     {
+        //         if (value.SourceData.total_card_level==totle
+        //             && value.SourceData.total_skill_points==skill
+        //             && value.SourceData.total_helper_weapons==weapon
+        //             && value.SourceData.total_helper_scrolls==scroll
+        //             && value.SourceData.total_pet_levels==pet
+        //             )
+        //         {
+        //             playerData = value;
+        //         }
+        //     }
+        // }
+        //
+        // if (playerData == null)
+        // {
+        //     string ret = "没有找到对应玩家";
+        //     if (!_club.HaveRaid)
+        //         ret += "\n当前没有突袭，请在打突袭时导入";
+        //     return ret;
+        // }
+        //
+        // int t = 0;
+        // foreach (var (key,value) in ClubTool.CardEName)
+        // {
+        //     if (dic.ContainsKey(key))
+        //     {
+        //         t+=Int32.Parse(dic[key]);
+        //     }
+        //     else
+        //     {
+        //         Console.WriteLine(key);
+        //     }
+        // }
+        //
+        // if (t != totle)
+        //     return "请不要自77人";
+        // foreach (var (key,value) in ClubTool.CardEName)
+        // {
+        //     if (dic.ContainsKey(key))
+        //     {
+        //         if (playerData.Card.ContainsKey(value))
+        //             playerData.Card[value]=Int32.Parse(dic[key]);
+        //         else
+        //             playerData.Card.Add(value, Int32.Parse(dic[key]));
+        //     }
+        // }
+        //
+        // return "更新成功，建议撤回";
 
         return SoraMessage.Null;
     }
@@ -1206,145 +1272,145 @@ public partial class RaidRobotModel
     {
         1, 1.1f, 1.14f, 1.16f, 1.18f, 1.2f, 1.22f, 1.24f, 1.26f, 1.28f, 1.3f, 1.32f, 1.34f, 1.34f
     };
-    private async Task<SoraMessage> RaidCardCal(GroupMsgData data, string other)
-    {
-        if (!_data.QQLink.ContainsKey(data.Sender))
-            return "没有你的卡片数据";
-        if (string.IsNullOrEmpty(other))
-            return "请正确输入,例如\n突袭模拟 胸 月光 风刃 风刃\n突袭模拟 胸肉 月光 灵魂 风刃";
-
-        if (other.StartsWith(' '))
-            other = other.Substring(1);
-        var args = other.Split(' ');
-        if(args.Length<=1)
-            return "请正确输入,例如\n突袭模拟 胸 月光 风刃 风刃\n突袭模拟 胸肉 月光 灵魂 风刃";
-        int p = -1;
-        int pa = -1;
-        if (partCName.ContainsKey(args[0]))
-            p = partCName[args[0]];
-        
-        if (!_club.HaveRaid && p != -1)
-            return "当前没有突袭，请输入具体部位，如头蓝条，头白条";
-        if (p == -1)
-        {
-            foreach (var (name,i) in partCName)
-            {
-                if (args[0].StartsWith(name))
-                    p = i;
-            }
-
-            if (args[0].EndsWith("蓝条"))
-                pa = 0;
-            else if (args[0].EndsWith("白条"))
-                pa = 1;
-            if (pa == -1 || p == -1)
-                return "请输入正确部位，如头蓝条，头白条";
-        }
-
-        List<CalPart> parts = new List<CalPart>();
-        for (int i = 0; i < 8; i++)
-        {
-            parts.Add(null);
-        }
-        CalPart target = null;
-        if (pa == -1 && _club.HaveRaid)
-        {
-            var titan= _club.GetCurrentTitanData();
-            CalPart part = null;
-            
-            for (var j = 0; j < titan.parts.Count; j++)
-            {
-                var i = titan.parts[j];
-                int pd = (int) i.part_id;
-                int index = pd / 2;
-                if (parts[index] == null)
-                    parts[index] = new CalPart(i);
-                else
-                    parts[index].Add(i);
-                if (index==p)
-                    part = parts[index];
-            }
-
-            if (part.CurrentHp > 0)
-                target = part;
-            else
-                return "当前部分为骨架，请选其他部位\n或选择正确部位，如头蓝条，头白条";
-        }
-        
-        var player = _data.Player[_data.QQLink[data.Sender]];
-        string s = "突等："+player.RaidLevel+"\n";
-        Dictionary<string, int> card = new Dictionary<string, int>();
-        for (var i = 1; i < Math.Min(args.Length,4) ; i++)
-        {
-            var c = args[i];
-            var id = ClubTool.NameToIDCard(c);
-            if (string.IsNullOrEmpty(id))
-                return "没找到对于简称，查看简称可以命令：卡名字";
-
-            if (!player.Card.ContainsKey(id))
-                return "你还没有对应卡的数据，可以使用导入个人数据导入";
-            if(card.ContainsKey(id))
-                return SoraMessage.Null;
-            card.Add(id,player.Card[id]);
-            s += c + ":" + card[id]+"\n";
-        }
-        RaidCal cal = new RaidCal();
-        if (target==null)
-        {
-            target = new CalPart(p, pa);
-        }
-        cal.TargetPart = target;
-        RaidCal.RaidAdd add = new RaidCal.RaidAdd();
-
-        add.AllAdd *= LoyaltyLevel[player.SourceData.loyalty_level];
-        double td = 0;
-        if (_club.HaveRaid)
-        {
-            var raid = _club.clan_raid;
-            if (raid.boost_bonus != null)
-            {
-                if (raid.boost_bonus.BonusType == "AllRaidDamage")
-                    td += raid.boost_bonus.BonusAmount;
-            }
-
-            if (raid.special_card_info != null && raid.special_card_info.Count > 0)
-            {
-                raid.special_card_info.ForEach(i =>
-                {
-                    if (i.BonusType == "TeamTacticsClanMoraleBoost")
-                        td += i.BonusAmount;
-                });
-            }
-
-            add.AllAdd *= (float)(1 + td);
-        }
-        
-        double all = 0;
-        int count = 100;
-        // double max = Double.MinValue;
-        // double min =Double.MaxValue;
-        // for (int i = 0; i < count; i++)
-        // {
-        //     var d = cal.Cal(card, player.RaidLevel, DataManage, parts, add);
-        //     if (d > max)
-        //         max = d;
-        //     if (d < min)
-        //         min = d;
-        //     all += d;
-        // }
-        //
-        // s += $"模拟{count}次\n最高:{max.ShowNum()}\n最低:{min.ShowNum()}\n平均:{(all / count).ShowNum()}";
-        List<RaidDmgData> list = new List<RaidDmgData>();
-        for (int i = 0; i < count; i++)
-        {
-            var d = cal.Cal(card, player.RaidLevel, DataManage, parts, add);
-            list.Add(d);
-        }
-        
-        var f = GetModelDir() + "RaidCardCal.png";
-        RaidDmgDataTool.DrawDmgDataList(list,f,player.SourceData,(float)td);
-        return Tool.Image(f);
-    }
+    // private async Task<SoraMessage> RaidCardCal(GroupMsgData data, string other)
+    // {
+    //     if (!_data.QQLink.ContainsKey(data.Sender))
+    //         return "没有你的卡片数据";
+    //     if (string.IsNullOrEmpty(other))
+    //         return "请正确输入,例如\n突袭模拟 胸 月光 风刃 风刃\n突袭模拟 胸肉 月光 灵魂 风刃";
+    //
+    //     if (other.StartsWith(' '))
+    //         other = other.Substring(1);
+    //     var args = other.Split(' ');
+    //     if(args.Length<=1)
+    //         return "请正确输入,例如\n突袭模拟 胸 月光 风刃 风刃\n突袭模拟 胸肉 月光 灵魂 风刃";
+    //     int p = -1;
+    //     int pa = -1;
+    //     if (partCName.ContainsKey(args[0]))
+    //         p = partCName[args[0]];
+    //     
+    //     if (!_club.HaveRaid && p != -1)
+    //         return "当前没有突袭，请输入具体部位，如头蓝条，头白条";
+    //     if (p == -1)
+    //     {
+    //         foreach (var (name,i) in partCName)
+    //         {
+    //             if (args[0].StartsWith(name))
+    //                 p = i;
+    //         }
+    //
+    //         if (args[0].EndsWith("蓝条"))
+    //             pa = 0;
+    //         else if (args[0].EndsWith("白条"))
+    //             pa = 1;
+    //         if (pa == -1 || p == -1)
+    //             return "请输入正确部位，如头蓝条，头白条";
+    //     }
+    //
+    //     List<CalPart> parts = new List<CalPart>();
+    //     for (int i = 0; i < 8; i++)
+    //     {
+    //         parts.Add(null);
+    //     }
+    //     CalPart target = null;
+    //     if (pa == -1 && _club.HaveRaid)
+    //     {
+    //         var titan= _club.GetCurrentTitanData();
+    //         CalPart part = null;
+    //         
+    //         for (var j = 0; j < titan.parts.Count; j++)
+    //         {
+    //             var i = titan.parts[j];
+    //             int pd = (int) i.part_id;
+    //             int index = pd / 2;
+    //             if (parts[index] == null)
+    //                 parts[index] = new CalPart(i);
+    //             else
+    //                 parts[index].Add(i);
+    //             if (index==p)
+    //                 part = parts[index];
+    //         }
+    //
+    //         if (part.CurrentHp > 0)
+    //             target = part;
+    //         else
+    //             return "当前部分为骨架，请选其他部位\n或选择正确部位，如头蓝条，头白条";
+    //     }
+    //     
+    //     var player = _data.Player[_data.QQLink[data.Sender]];
+    //     string s = "突等："+player.RaidLevel+"\n";
+    //     Dictionary<string, int> card = new Dictionary<string, int>();
+    //     for (var i = 1; i < Math.Min(args.Length,4) ; i++)
+    //     {
+    //         var c = args[i];
+    //         var id = ClubTool.NameToIDCard(c);
+    //         if (string.IsNullOrEmpty(id))
+    //             return "没找到对于简称，查看简称可以命令：卡名字";
+    //
+    //         if (!player.Card.ContainsKey(id))
+    //             return "你还没有对应卡的数据，可以使用导入个人数据导入";
+    //         if(card.ContainsKey(id))
+    //             return SoraMessage.Null;
+    //         card.Add(id,player.Card[id]);
+    //         s += c + ":" + card[id]+"\n";
+    //     }
+    //     RaidCal cal = new RaidCal();
+    //     if (target==null)
+    //     {
+    //         target = new CalPart(p, pa);
+    //     }
+    //     cal.TargetPart = target;
+    //     RaidCal.RaidAdd add = new RaidCal.RaidAdd();
+    //
+    //     add.AllAdd *= LoyaltyLevel[player.SourceData.loyalty_level];
+    //     double td = 0;
+    //     if (_club.HaveRaid)
+    //     {
+    //         var raid = _club.clan_raid;
+    //         if (raid.boost_bonus != null)
+    //         {
+    //             if (raid.boost_bonus.BonusType == "AllRaidDamage")
+    //                 td += raid.boost_bonus.BonusAmount;
+    //         }
+    //
+    //         if (raid.special_card_info != null && raid.special_card_info.Count > 0)
+    //         {
+    //             raid.special_card_info.ForEach(i =>
+    //             {
+    //                 if (i.BonusType == "TeamTacticsClanMoraleBoost")
+    //                     td += i.BonusAmount;
+    //             });
+    //         }
+    //
+    //         add.AllAdd *= (float)(1 + td);
+    //     }
+    //     
+    //     double all = 0;
+    //     int count = 100;
+    //     // double max = Double.MinValue;
+    //     // double min =Double.MaxValue;
+    //     // for (int i = 0; i < count; i++)
+    //     // {
+    //     //     var d = cal.Cal(card, player.RaidLevel, DataManage, parts, add);
+    //     //     if (d > max)
+    //     //         max = d;
+    //     //     if (d < min)
+    //     //         min = d;
+    //     //     all += d;
+    //     // }
+    //     //
+    //     // s += $"模拟{count}次\n最高:{max.ShowNum()}\n最低:{min.ShowNum()}\n平均:{(all / count).ShowNum()}";
+    //     List<RaidDmgData> list = new List<RaidDmgData>();
+    //     for (int i = 0; i < count; i++)
+    //     {
+    //         var d = cal.Cal(card, player.RaidLevel, DataManage, parts, add);
+    //         list.Add(d);
+    //     }
+    //     
+    //     var f = GetModelDir() + "RaidCardCal.png";
+    //     RaidDmgDataTool.DrawDmgDataList(list,f,player.SourceData,(float)td);
+    //     return Tool.Image(f);
+    // }
 
     
     /// <summary>
@@ -1377,18 +1443,21 @@ public partial class RaidRobotModel
     }
     
     /// <summary>
-    /// 清理不在的人
+    /// 重连api
     /// </summary>
     /// <param name="data"></param>
     /// <returns></returns>
-    private async Task<SoraMessage> StopClient(GroupMsgData data)
+    private async Task<SoraMessage> ReStartClient(GroupMsgData data)
     {
         if (_config.CanUse())
         {
             if (!(data.IsAdmin|| data.IsGroupAdmin))
                 return "你没权限！";
-            PostApi.Stop();
-            return $"api断开连接";
+            await PostApi.Stop();
+            await Task.Delay(10000);
+            await PostApi.CheckReStart();
+            
+            return SoraMessage.Null;
         }
         else
         {

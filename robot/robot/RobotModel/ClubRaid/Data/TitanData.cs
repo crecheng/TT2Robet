@@ -8,10 +8,10 @@ namespace testrobot
     [SuppressMessage("Interoperability", "CA1416:验证平台兼容性")]
     public class TitanData
     {
-        public List<DeBuff> bonuses;
+        public List<Bonus> bonuses;
         public double current_hp;
         public double total_hp;
-        public List<DeBuff> enchant_bonuses;
+        public List<Bonus> enchant_bonuses;
         public string enemy_id;
         public string enemy_name;
         public List<Part> parts;
@@ -92,7 +92,7 @@ namespace testrobot
             return key;
         }
 
-        public void DrawTitan(ClubData clubData, string name,DateTime last)
+        public void DrawTitan(RaidCurrentData clubData, string name,DateTime last)
         {
             List<Rectangle> rects = new List<Rectangle>()
             {
@@ -263,6 +263,7 @@ namespace testrobot
         {
             double all = 0;
             parts.ForEach((p) => all += Target.IsAttack(p.part_id) ? p.total_hp : 0);
+            all += total_hp;
             return all;
         }
 

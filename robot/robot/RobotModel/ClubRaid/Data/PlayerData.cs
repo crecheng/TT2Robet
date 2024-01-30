@@ -126,33 +126,7 @@ using System.Text.RegularExpressions;
                    $"背景id: {player_background_id}\n";
 
         }
-
-        public Dictionary<string, string> GetInfo()
-        {
-            return new Dictionary<string, string>()
-            {
-                {"名字",Regex.Unescape(name)},
-                {"代码",player_code},
-                {"部落",Regex.Unescape(clan_name)},
-                {"忠诚等级",loyalty_level.ToString()},
-                {"突袭等级",player_raid_level.ToString()},
-                {"总突袭经验",total_raid_player_xp.ToString()},
-                {"总突袭次数",total_num_raid_attacks.ToString()},
-                {"总卡等",total_card_level.ToString()},
-                {"总士气",raid_tickets_collected.ToString()},
-                {"通配卡数",raid_wildcard_count.ToString()},
-            };
-            
-        }
-        public string ClubRaidDamage(bool isSub=false)
-        {
-            if(!isSub)
-                return $"{Regex.Unescape(name)}--{num_attacks}--{score.ShowNum()}";
-            else
-            {
-                return $"{Regex.Unescape(name).SubstringIncludeChinese(4)}--{num_attacks}--{score.ShowNum()}";
-            }
-        }
+        
         
     }
 }
